@@ -151,7 +151,7 @@ bool AutoMoc::run()
             sourceFile.open(QIODevice::ReadOnly);
             const QByteArray contents = sourceFile.readAll();
             if (contents.isEmpty()) {
-                cerr << "kde4automoc: empty source file: " << absFilename << endl;
+                cerr << "automoc4: empty source file: " << absFilename << endl;
                 continue;
             }
             const QString contentsString = QString::fromUtf8(contents);
@@ -207,7 +207,7 @@ bool AutoMoc::run()
                             }
                         }
                         if (!headerFound) {
-                                cerr << "kde4automoc: The file \"" << absFilename <<
+                                cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
                                     absPath + basename + "{" + headerExtensions.join(",") + "}" <<
                                     "\" do not exist." << endl;
@@ -234,7 +234,7 @@ bool AutoMoc::run()
             }
         } else {
             if (verbose) {
-               cout << "kde4automoc: ignoring file '" << absFilename << "' with unknown suffix" << endl;
+               cout << "automoc4: ignoring file '" << absFilename << "' with unknown suffix" << endl;
             }
         }
     }
@@ -267,7 +267,7 @@ bool AutoMoc::run()
 
     if (failed) {
         // if any moc process failed we don't want to touch the _automoc.cpp file so that
-        // kde4automoc is rerun until the issue is fixed
+        // automoc4 is rerun until the issue is fixed
         cerr << "returning failed.."<< endl;
         return false;
     }
@@ -290,7 +290,7 @@ void AutoMoc::waitForProcesses()
         //ignore errors from the cmake echo process
         if (!proc.mocFilePath.isEmpty()) {
             if (!result || proc.qproc->exitCode()) {
-                cerr << "kde4automoc: process for " << proc.mocFilePath
+                cerr << "automoc4: process for " << proc.mocFilePath
                      << " failed: " << proc.qproc->errorString() << endl;
                 cerr << "pid to wait for: " << proc.qproc->pid() << endl;
                 cerr << "processes in queue: " << processes.size() << endl;
@@ -315,11 +315,11 @@ void AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 
         // we don't want too many child processes
 #ifdef Q_OS_FREEBSD
-	static const int max_processes = 0;
+    static const int max_processes = 0;
 #else
-	static const int max_processes = 10;
+    static const int max_processes = 10;
 #endif
-	
+
         if (processes.size() > max_processes) {
             waitForProcesses();
         }
@@ -336,7 +336,7 @@ void AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
         if (mocProc->waitForStarted())
             processes.enqueue(Process(mocProc, mocFilePath));
         else {
-            cerr << "kde4automoc: process for " << mocFilePath << "failed to start: " 
+            cerr << "automoc4: process for " << mocFilePath << "failed to start: " 
                  << mocProc->errorString() << endl;
             failed = true;
             delete mocProc;
