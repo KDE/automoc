@@ -3,7 +3,6 @@ get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
 # are we in the source tree or already installed ?
 if(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
-   message(STATUS "source dir")
    get_target_property(AUTOMOC4_EXECUTABLE automoc4 LOCATION)
    set(_AUTOMOC4_EXECUTABLE_DEP automoc4)
 else(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
@@ -11,10 +10,7 @@ else(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_filename_component(_AUTOMOC4_CURRENT_DIR  "${_AUTOMOC4_CURRENT_DIR}" PATH)
    find_program(AUTOMOC4_EXECUTABLE automoc4 PATHS  "${_AUTOMOC4_CURRENT_DIR}/bin" NO_DEFAULT_PATH)
    set(_AUTOMOC4_EXECUTABLE_DEP)
-   message(STATUS "installed")
 endif(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
-
-message(STATUS "automoc: ${AUTOMOC4_EXECUTABLE}")
 
 macro (AUTOMOC4_MOC_HEADERS _target_NAME)
    set (_headers_to_moc)
