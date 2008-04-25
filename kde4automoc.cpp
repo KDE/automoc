@@ -40,7 +40,8 @@ class AutoMoc
     private:
         void generateMoc(const QString &sourceFile, const QString &mocFileName);
         void waitForProcesses();
-        void usage(const QString &);
+        void printUsage(const QString &);
+        void printVersion();
         void echoColor(const QString &msg)
         {
             QProcess *cmakeEcho = new QProcess;
@@ -68,10 +69,14 @@ class AutoMoc
         bool failed;
 };
 
-void AutoMoc::usage(const QString &path)
+void AutoMoc::printUsage(const QString &path)
 {
     cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable>" << endl;
-    ::exit(EXIT_FAILURE);
+}
+
+void AutoMoc::printVersion()
+{
+    cout << "automoc4 1.0" << endl;
 }
 
 int main(int argc, char **argv)
@@ -96,8 +101,19 @@ bool AutoMoc::run()
 {
     const QStringList args = QCoreApplication::arguments();
     Q_ASSERT(args.size() > 0);
-    if (args.size() < 4) {
-        usage(args[0]);
+    if (args.size() == 2) {
+        if ((args[1]=="--help") || (args[1]=="-h")) {
+        printUsage(args[0]);
+       ::exit(0);
+        }
+        else if (args[1]=="--version") {
+        printVersion();
+       ::exit(0);
+        }
+    }
+    else if (args.size() < 4) {
+        printUsage(args[0]);
+       ::exit(EXIT_FAILURE);
     }
     QFile outfile(args[1]);
     const QFileInfo outfileInfo(outfile);
