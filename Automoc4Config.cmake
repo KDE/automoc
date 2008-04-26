@@ -30,7 +30,7 @@ macro (AUTOMOC4_MOC_HEADERS _target_NAME)
 endmacro (AUTOMOC4_MOC_HEADERS)
 
 
-macro(AUTOMOC4_HANDLE_AUTOMOC _target_NAME _SRCS)
+macro(AUTOMOC4 _target_NAME _SRCS)
    set(_moc_files)
    set(_moc_headers)
 
@@ -85,5 +85,5 @@ macro(AUTOMOC4_HANDLE_AUTOMOC _target_NAME _SRCS)
       # set_source_files_properties(${${_SRCS}} PROPERTIES OBJECT_DEPENDS ${_automoc_source})
       set(${_SRCS} ${_automoc_source} ${${_SRCS}})
    endif(_moc_files)
-endmacro(AUTOMOC4_HANDLE_AUTOMOC)
+endmacro(AUTOMOC4)
 
