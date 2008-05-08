@@ -4,12 +4,10 @@ get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 # are we in the source tree or already installed ?
 if(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_target_property(AUTOMOC4_EXECUTABLE automoc4 LOCATION)
-   set(_AUTOMOC4_EXECUTABLE_DEP automoc4)
 else(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_filename_component(_AUTOMOC4_BIN_DIR  "${_AUTOMOC4_CURRENT_DIR}" PATH)
    get_filename_component(_AUTOMOC4_BIN_DIR  "${_AUTOMOC4_BIN_DIR}" PATH)
    find_program(AUTOMOC4_EXECUTABLE automoc4 PATHS  "${_AUTOMOC4_BIN_DIR}/bin" NO_DEFAULT_PATH)
-   set(_AUTOMOC4_EXECUTABLE_DEP)
 endif(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
 
 macro (AUTOMOC4_MOC_HEADERS _target_NAME)
@@ -78,12 +76,12 @@ macro(AUTOMOC4 _target_NAME _SRCS)
          ${CMAKE_CURRENT_BINARY_DIR}
          ${QT_MOC_EXECUTABLE}
 #         ${CMAKE_COMMAND}
-         DEPENDS ${${_SRCS}} ${_moc_headers} ${_automoc_source}.files ${_AUTOMOC4_EXECUTABLE_DEP}
+         DEPENDS ${_automoc_source}.files
+         COMMENT ""
+         VERBATIM
          )
-      # the OBJECT_DEPENDS is only necessary when a new moc file has to be generated that is included in a source file
-      # problem: the whole target is recompiled when the automoc.cpp file is touched
-      # set_source_files_properties(${${_SRCS}} PROPERTIES OBJECT_DEPENDS ${_automoc_source})
       set(${_SRCS} ${_automoc_source} ${${_SRCS}})
+      set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${_automoc_source}.notclean)
    endif(_moc_files)
 endmacro(AUTOMOC4)
 

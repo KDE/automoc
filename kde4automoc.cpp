@@ -43,7 +43,7 @@ class AutoMoc
         bool run();
 
     private:
-        void generateMoc(const QString &sourceFile, const QString &mocFileName);
+        bool generateMoc(const QString &sourceFile, const QString &mocFileName);
         void waitForProcesses();
         void printUsage(const QString &);
         void printVersion();
@@ -72,6 +72,8 @@ class AutoMoc
         };
         QQueue<Process> processes;
         bool failed;
+        bool automocCppChanged;
+        bool generateAll;
 };
 
 void AutoMoc::printUsage(const QString &path)
@@ -94,7 +96,8 @@ int main(int argc, char **argv)
 }
 
 AutoMoc::AutoMoc()
-    : verbose(!qgetenv("VERBOSE").isEmpty()), cerr(stderr), cout(stdout), failed(false)
+    : verbose(!qgetenv("VERBOSE").isEmpty()), cerr(stderr), cout(stdout), failed(false),
+    automocCppChanged(false)
 {
     const QByteArray colorEnv = qgetenv("COLOR");
     cmakeEchoColorArgs << QLatin1String("-E") << QLatin1String("cmake_echo_color") 
@@ -132,6 +135,9 @@ bool AutoMoc::run()
         builddir += '/';
     }
     mocExe = args[4];
+
+    QFile notclean(args[1] + ".notclean");
+    generateAll = !notclean.exists();
 
     QFile dotFiles(args[1] + ".files");
     dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
@@ -278,7 +284,9 @@ bool AutoMoc::run()
         end = notIncludedMocs.constEnd();
         it = notIncludedMocs.constBegin();
         for (; it != end; ++it) {
-            generateMoc(it.key(), it.value());
+            if (generateMoc(it.key(), it.value())) {
+                automocCppChanged = true;
+            }
             outStream << "#include \"" << it.value() << "\"\n";
         }
     }
@@ -294,10 +302,32 @@ bool AutoMoc::run()
     }
     outStream.flush();
 
-    // source file that includes all remaining moc files
+    if (generateAll) {
+        notclean.open(QIODevice::WriteOnly);
+        notclean.close();
+    }
+
+    if (!automocCppChanged) {
+        // compare contents of the _automoc.cpp file
+        outfile.open(QIODevice::ReadOnly | QIODevice::Text);
+        const QByteArray oldContents = outfile.readAll();
+        outfile.close();
+        if (oldContents == automocSource) {
+            // nothing changed: don't touch the _automoc.cpp file
+            return true;
+        }
+    }
+    // either the contents of the _automoc.cpp file or one of the mocs included by it have changed
+
+    // source file that includes all remaining moc files (_automoc.cpp file)
     outfile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate);
     outfile.write(automocSource);
     outfile.close();
+
+    // update the timestamp on the _automoc.cpp.files file
+    dotFiles.close();
+    dotFiles.open(QIODevice::WriteOnly | QIODevice::Append);
+    dotFiles.close();
 
     return true;
 }
@@ -323,11 +353,11 @@ void AutoMoc::waitForProcesses()
     }
 }
 
-void AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
+bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 {
     //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
     const QString mocFilePath = builddir + mocFileName;
-    if (QFileInfo(mocFilePath).lastModified() < QFileInfo(sourceFile).lastModified()) {
+    if (generateAll || QFileInfo(mocFilePath).lastModified() < QFileInfo(sourceFile).lastModified()) {
         if (verbose) {
             echoColor("Generating " + mocFilePath + " from " + sourceFile);
         } else {
@@ -354,13 +384,15 @@ void AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
         args << QLatin1String("-o") << mocFilePath << sourceFile;
         //qDebug() << "executing: " << mocExe << args;
         mocProc->start(mocExe, args, QIODevice::NotOpen);
-        if (mocProc->waitForStarted())
+        if (mocProc->waitForStarted()) {
             processes.enqueue(Process(mocProc, mocFilePath));
-        else {
+            return true;
+        } else {
             cerr << "automoc4: process for " << mocFilePath << "failed to start: " 
                  << mocProc->errorString() << endl;
             failed = true;
             delete mocProc;
         }
     }
+    return false;
 }
