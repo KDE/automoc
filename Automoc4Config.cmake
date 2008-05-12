@@ -4,10 +4,13 @@ get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 # are we in the source tree or already installed ?
 if(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_target_property(AUTOMOC4_EXECUTABLE automoc4 LOCATION)
+   # this dependency is required to make parallel builds of kdesupport work:
+   set(_AUTOMOC4_EXECUTABLE_DEP automoc4)
 else(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_filename_component(_AUTOMOC4_BIN_DIR  "${_AUTOMOC4_CURRENT_DIR}" PATH)
    get_filename_component(_AUTOMOC4_BIN_DIR  "${_AUTOMOC4_BIN_DIR}" PATH)
    find_program(AUTOMOC4_EXECUTABLE automoc4 PATHS  "${_AUTOMOC4_BIN_DIR}/bin" NO_DEFAULT_PATH)
+   set(_AUTOMOC4_EXECUTABLE_DEP)
 endif(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
 
 macro (AUTOMOC4_MOC_HEADERS _target_NAME)
@@ -76,7 +79,7 @@ macro(AUTOMOC4 _target_NAME _SRCS)
          ${CMAKE_CURRENT_BINARY_DIR}
          ${QT_MOC_EXECUTABLE}
 #         ${CMAKE_COMMAND}
-         DEPENDS ${_automoc_source}.files
+         DEPENDS ${_automoc_source}.files ${_AUTOMOC4_EXECUTABLE_DEP}
          COMMENT ""
          VERBATIM
          )
