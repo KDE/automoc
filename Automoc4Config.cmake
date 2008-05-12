@@ -72,7 +72,7 @@ macro(AUTOMOC4 _target_NAME _SRCS)
       set(_automoc_source "${CMAKE_CURRENT_BINARY_DIR}/${_target_NAME}_automoc.cpp")
       get_directory_property(_moc_incs INCLUDE_DIRECTORIES)
       configure_file(${_AUTOMOC4_CURRENT_DIR}/automoc4.files.in ${_automoc_source}.files)
-      add_custom_command(OUTPUT ${_automoc_source}
+      add_custom_command(OUTPUT ${_automoc_source} ${_automoc_source}.notclean
          COMMAND ${AUTOMOC4_EXECUTABLE}
          ${_automoc_source}
          ${CMAKE_CURRENT_SOURCE_DIR}
@@ -83,7 +83,7 @@ macro(AUTOMOC4 _target_NAME _SRCS)
          COMMENT ""
          VERBATIM
          )
-      set(${_SRCS} ${_automoc_source} ${${_SRCS}})
+      set(${_SRCS} ${_automoc_source} ${_automoc_source}.notclean ${${_SRCS}})
       set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${_automoc_source}.notclean)
    endif(_moc_files)
 endmacro(AUTOMOC4)
