@@ -35,6 +35,10 @@
 #include <QtCore/QTextStream>
 #include <QtCore/QtDebug>
 #include <cstdlib>
+#include <sys/types.h>
+#include <utime.h>
+#include <time.h>
+#include <errno.h>
 
 class AutoMoc
 {
@@ -43,6 +47,7 @@ class AutoMoc
         bool run();
 
     private:
+        bool touch(const QByteArray &filename);
         bool generateMoc(const QString &sourceFile, const QString &mocFileName);
         void waitForProcesses();
         void printUsage(const QString &);
@@ -136,10 +141,10 @@ bool AutoMoc::run()
     }
     mocExe = args[4];
 
-    QFile notclean(args[1] + ".notclean");
-    generateAll = !notclean.exists();
+    generateAll = !outfile.exists();
 
     QFile dotFiles(args[1] + ".files");
+    const QDateTime &lastRun = QFileInfo(dotFiles).lastModified();
     dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
     QByteArray line = dotFiles.readLine();
     Q_ASSERT(line == "MOC_INCLUDES:\n");
@@ -168,6 +173,36 @@ bool AutoMoc::run()
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
     headerExtensions << ".h" << ".hpp" << ".hxx" << ".H";
+    if (!generateAll) {
+        bool dirty = false;
+        foreach (const QString &absFilename, sourceFiles) {
+            const QFileInfo sourceFileInfo(absFilename);
+            if (sourceFileInfo.lastModified() >= lastRun) {
+                dirty = true;
+                break;
+            }
+            const QString &absPathBaseName = sourceFileInfo.absolutePath() + QLatin1Char('/') + sourceFileInfo.completeBaseName();
+            foreach (const QString &ext, headerExtensions) {
+                const QFileInfo header(absPathBaseName + ext);
+                if (header.exists() && header.lastModified() >= lastRun) {
+                    dirty = true;
+                    break;
+                }
+                const QFileInfo pheader(absPathBaseName + QLatin1String("_p") + ext);
+                if (pheader.exists() && pheader.lastModified() >= lastRun) {
+                    dirty = true;
+                    break;
+                }
+            }
+            if (dirty) {
+                break;
+            }
+        }
+        if (!dirty) {
+            return true;
+        }
+    }
+
     foreach (const QString &absFilename, sourceFiles) {
         //qDebug() << absFilename;
         const QFileInfo sourceFileInfo(absFilename);
@@ -189,28 +224,34 @@ bool AutoMoc::run()
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 //qDebug() << "no moc #include in the .cpp file";
                 const QString basename = sourceFileInfo.completeBaseName();
-                const QString headername = absPath + basename + ".h";
-                if (QFile::exists(headername) && !includedMocs.contains(headername) &&
-                        !notIncludedMocs.contains(headername)) {
-                    const QString currentMoc = "moc_" + basename + ".cpp";
-                    QFile header(headername);
-                    header.open(QIODevice::ReadOnly);
-                    const QByteArray contents = header.readAll();
-                    if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
-                        //qDebug() << "header contains Q_OBJECT macro";
-                        notIncludedMocs.insert(headername, currentMoc);
+                foreach (const QString &ext, headerExtensions) {
+                    const QString headername = absPath + basename + ext;
+                    if (QFile::exists(headername) && !includedMocs.contains(headername) &&
+                            !notIncludedMocs.contains(headername)) {
+                        const QString currentMoc = "moc_" + basename + ".cpp";
+                        QFile header(headername);
+                        header.open(QIODevice::ReadOnly);
+                        const QByteArray contents = header.readAll();
+                        if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
+                            //qDebug() << "header contains Q_OBJECT macro";
+                            notIncludedMocs.insert(headername, currentMoc);
+                        }
+                        break;
                     }
                 }
-                const QString privateHeaderName = absPath + basename + "_p.h";
-                if (QFile::exists(privateHeaderName) && !includedMocs.contains(privateHeaderName) &&
-                        !notIncludedMocs.contains(privateHeaderName)) {
-                    const QString currentMoc = "moc_" + basename + "_p.cpp";
-                    QFile header(privateHeaderName);
-                    header.open(QIODevice::ReadOnly);
-                    const QByteArray contents = header.readAll();
-                    if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
-                        //qDebug() << "header contains Q_OBJECT macro";
-                        notIncludedMocs.insert(privateHeaderName, currentMoc);
+                foreach (const QString &ext, headerExtensions) {
+                    const QString privateHeaderName = absPath + basename + "_p" + ext;
+                    if (QFile::exists(privateHeaderName) && !includedMocs.contains(privateHeaderName) &&
+                            !notIncludedMocs.contains(privateHeaderName)) {
+                        const QString currentMoc = "moc_" + basename + "_p.cpp";
+                        QFile header(privateHeaderName);
+                        header.open(QIODevice::ReadOnly);
+                        const QByteArray contents = header.readAll();
+                        if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
+                            //qDebug() << "header contains Q_OBJECT macro";
+                            notIncludedMocs.insert(privateHeaderName, currentMoc);
+                        }
+                        break;
                     }
                 }
             } else {
@@ -302,11 +343,6 @@ bool AutoMoc::run()
     }
     outStream.flush();
 
-    if (generateAll) {
-        notclean.open(QIODevice::WriteOnly);
-        notclean.close();
-    }
-
     if (!automocCppChanged) {
         // compare contents of the _automoc.cpp file
         outfile.open(QIODevice::ReadOnly | QIODevice::Text);
@@ -324,11 +360,29 @@ bool AutoMoc::run()
     outfile.write(automocSource);
     outfile.close();
 
-    // update the timestamp on the _automoc.cpp.files file
+    // update the timestamp on the _automoc.cpp.files file to make sure we get called again
     dotFiles.close();
-    dotFiles.open(QIODevice::WriteOnly | QIODevice::Append);
-    dotFiles.close();
+    if (!touch(QFile::encodeName(dotFiles.fileName()))) {
+        return false;
+    }
 
+    return true;
+}
+
+bool AutoMoc::touch(const QByteArray &filename)
+{
+    // sleep for 1s in order to make the modification time greater than the modification time of
+    // the files written before. Equal modification time is not good enough. Just using utime with
+    // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
+    const struct timespec sleepDuration = { 1, 0 };
+    nanosleep(&sleepDuration, NULL);
+
+    int err = utime(filename.constData(), NULL);
+    if (err == -1) {
+        err = errno;
+        cerr << strerror(err) << "\n";
+        return false;
+    }
     return true;
 }
 
@@ -357,7 +411,7 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 {
     //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
     const QString mocFilePath = builddir + mocFileName;
-    if (generateAll || QFileInfo(mocFilePath).lastModified() < QFileInfo(sourceFile).lastModified()) {
+    if (generateAll || QFileInfo(mocFilePath).lastModified() <= QFileInfo(sourceFile).lastModified()) {
         if (verbose) {
             echoColor("Generating " + mocFilePath + " from " + sourceFile);
         } else {
