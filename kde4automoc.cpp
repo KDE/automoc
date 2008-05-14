@@ -144,7 +144,6 @@ bool AutoMoc::run()
     generateAll = !outfile.exists();
 
     QFile dotFiles(args[1] + ".files");
-    const QDateTime &lastRun = QFileInfo(dotFiles).lastModified();
     dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
     QByteArray line = dotFiles.readLine();
     Q_ASSERT(line == "MOC_INCLUDES:\n");
@@ -173,6 +172,8 @@ bool AutoMoc::run()
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
     headerExtensions << ".h" << ".hpp" << ".hxx" << ".H";
+    /* not safe: if a moc file is missing it's hard to get it generated if this check is "active"
+    const QDateTime &lastRun = QFileInfo(dotFiles).lastModified();
     if (!generateAll) {
         bool dirty = false;
         foreach (const QString &absFilename, sourceFiles) {
@@ -202,6 +203,7 @@ bool AutoMoc::run()
             return true;
         }
     }
+    */
 
     foreach (const QString &absFilename, sourceFiles) {
         //qDebug() << absFilename;
