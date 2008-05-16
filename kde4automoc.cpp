@@ -40,6 +40,10 @@
 #include <time.h>
 #include <errno.h>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 class AutoMoc
 {
     public:
@@ -47,7 +51,7 @@ class AutoMoc
         bool run();
 
     private:
-        bool touch(const QByteArray &filename);
+        bool touch(const QString &filename);
         bool generateMoc(const QString &sourceFile, const QString &mocFileName);
         void waitForProcesses();
         void printUsage(const QString &);
@@ -364,18 +368,23 @@ bool AutoMoc::run()
 
     // update the timestamp on the _automoc.cpp.files file to make sure we get called again
     dotFiles.close();
-    if (!touch(QFile::encodeName(dotFiles.fileName()))) {
+    if (!touch(dotFiles.fileName())) {
         return false;
     }
 
     return true;
 }
 
-bool AutoMoc::touch(const QByteArray &filename)
+bool AutoMoc::touch(const QString &_filename)
 {
     // sleep for 1s in order to make the modification time greater than the modification time of
     // the files written before. Equal modification time is not good enough. Just using utime with
     // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
+#ifdef Q_OS_WIN
+    Sleep( 1000 );
+    _wutime( (wchar_t *) _filename.utf16(), 0 );
+#else
+    QByteArray filename = QFile::encodeName( _filename );
     const struct timespec sleepDuration = { 1, 0 };
     nanosleep(&sleepDuration, NULL);
 
@@ -385,6 +394,7 @@ bool AutoMoc::touch(const QByteArray &filename)
         cerr << strerror(err) << "\n";
         return false;
     }
+#endif
     return true;
 }
 
