@@ -36,12 +36,14 @@
 #include <QtCore/QtDebug>
 #include <cstdlib>
 #include <sys/types.h>
-#include <utime.h>
 #include <time.h>
 #include <errno.h>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#include <sys/utime.h>
+#else
+#include <utime.h>
 #endif
 
 class AutoMoc
