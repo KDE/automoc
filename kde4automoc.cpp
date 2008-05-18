@@ -177,7 +177,12 @@ bool AutoMoc::run()
     QRegExp mocIncludeRegExp(QLatin1String("[\n]\\s*#\\s*include\\s+[\"<](moc_[^ \">]+\\.cpp|[^ \">]+\\.moc)[\">]"));
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
+#ifdef Q_OS_WIN
+    // not case sensitive
+    headerExtensions << ".h" << ".hpp" << ".hxx";
+#else
     headerExtensions << ".h" << ".hpp" << ".hxx" << ".H";
+#endif
     /* not safe: if a moc file is missing it's hard to get it generated if this check is "active"
     const QDateTime &lastRun = QFileInfo(dotFiles).lastModified();
     if (!generateAll) {
