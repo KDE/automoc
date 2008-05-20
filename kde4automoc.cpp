@@ -137,17 +137,16 @@ void AutoMoc::lazyInit()
     QByteArray line = dotFiles.readLine();
     dotFilesCheck(line == "MOC_INCLUDES:\n");
     line = dotFiles.readLine().trimmed();
-    const QStringList incPaths = QString::fromUtf8(line).split(';');
+    const QStringList &incPaths = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
     foreach (const QString &path, incPaths) {
-        if (!path.isEmpty()) {
-            mocIncludes << "-I" + path;
-        }
+        Q_ASSERT(!path.isEmpty());
+        mocIncludes << "-I" + path;
     }
 
     line = dotFiles.readLine();
     dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:\n");
     line = dotFiles.readLine();
-    if (line == "TRUE") {
+    if (line == "ON\n") {
         line = dotFiles.readLine();
         dotFilesCheck(line == "CMAKE_BINARY_DIR:\n");
         const QString &binDir = QLatin1String("-I") + QString::fromUtf8(dotFiles.readLine().trimmed());
@@ -212,7 +211,7 @@ bool AutoMoc::run()
 
     const QByteArray &line = dotFiles.readLine();
     dotFilesCheck(line == "SOURCES:\n");
-    const QStringList &sourceFiles = QString::fromUtf8(dotFiles.readLine().trimmed()).split(';');
+    const QStringList &sourceFiles = QString::fromUtf8(dotFiles.readLine().trimmed()).split(';', QString::SkipEmptyParts);
 
     // the program goes through all .cpp files to see which moc files are included. It is not really
     // interesting how the moc file is named, but what file the moc is created from. Once a moc is
