@@ -53,6 +53,8 @@ class AutoMoc
         bool run();
 
     private:
+        void dotFilesCheck(bool);
+        void lazyInit();
         bool touch(const QString &filename);
         bool generateMoc(const QString &sourceFile, const QString &mocFileName);
         void waitForProcesses();
@@ -64,7 +66,7 @@ class AutoMoc
             cmakeEcho->setProcessChannelMode(QProcess::ForwardedChannels);
             QStringList args(cmakeEchoColorArgs);
             args << msg;
-            cmakeEcho->start(QLatin1String("cmake"), args, QIODevice::NotOpen);
+            cmakeEcho->start(cmakeExecutable, args, QIODevice::NotOpen);
             processes.enqueue(Process(cmakeEcho, QString()));
         }
 
@@ -72,6 +74,8 @@ class AutoMoc
         QString mocExe;
         QStringList mocIncludes;
         QStringList cmakeEchoColorArgs;
+        QString cmakeExecutable;
+        QFile dotFiles;
         const bool verbose;
         QTextStream cerr;
         QTextStream cout;
@@ -89,12 +93,20 @@ class AutoMoc
 
 void AutoMoc::printUsage(const QString &path)
 {
-    cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable>" << endl;
+    cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable>" << endl;
 }
 
 void AutoMoc::printVersion()
 {
     cout << "automoc4 1.0" << endl;
+}
+
+void AutoMoc::dotFilesCheck(bool x)
+{
+    if (!x) {
+        cerr << "Error: syntax error in " << dotFiles.fileName();
+       ::exit(EXIT_FAILURE);
+    }
 }
 
 int main(int argc, char **argv)
@@ -116,9 +128,56 @@ AutoMoc::AutoMoc()
         << QLatin1String("--bold");
 }
 
+void AutoMoc::lazyInit()
+{
+    const QStringList &args = QCoreApplication::arguments();
+    mocExe = args[4];
+    cmakeExecutable = args[5];
+
+    QByteArray line = dotFiles.readLine();
+    dotFilesCheck(line == "MOC_INCLUDES:\n");
+    line = dotFiles.readLine().trimmed();
+    const QStringList incPaths = QString::fromUtf8(line).split(';');
+    foreach (const QString &path, incPaths) {
+        if (!path.isEmpty()) {
+            mocIncludes << "-I" + path;
+        }
+    }
+
+    line = dotFiles.readLine();
+    dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:\n");
+    line = dotFiles.readLine();
+    if (line == "TRUE") {
+        line = dotFiles.readLine();
+        dotFilesCheck(line == "CMAKE_BINARY_DIR:\n");
+        const QString &binDir = QLatin1String("-I") + QString::fromUtf8(dotFiles.readLine().trimmed());
+
+        line = dotFiles.readLine();
+        dotFilesCheck(line == "CMAKE_SOURCE_DIR:\n");
+        const QString &srcDir = QLatin1String("-I") + QString::fromUtf8(dotFiles.readLine().trimmed());
+
+        QStringList sortedMocIncludes;
+        QMutableListIterator<QString> it(mocIncludes);
+        while (it.hasNext()) {
+            if (it.next().startsWith(binDir)) {
+                sortedMocIncludes << it.value();
+                it.remove();
+            }
+        }
+        while (it.hasNext()) {
+            if (it.next().startsWith(srcDir)) {
+                sortedMocIncludes << it.value();
+                it.remove();
+            }
+        }
+        sortedMocIncludes += mocIncludes;
+        mocIncludes = sortedMocIncludes;
+    }
+}
+
 bool AutoMoc::run()
 {
-    const QStringList args = QCoreApplication::arguments();
+    const QStringList &args = QCoreApplication::arguments();
     Q_ASSERT(args.size() > 0);
     if (args.size() == 2) {
         if ((args[1]=="--help") || (args[1]=="-h")) {
@@ -130,7 +189,7 @@ bool AutoMoc::run()
        ::exit(0);
         }
     }
-    else if (args.size() < 4) {
+    else if (args.size() < 5) {
         printUsage(args[0]);
        ::exit(EXIT_FAILURE);
     }
@@ -145,26 +204,15 @@ bool AutoMoc::run()
     if (!builddir.endsWith('/')) {
         builddir += '/';
     }
-    mocExe = args[4];
 
     generateAll = !outfile.exists();
 
-    QFile dotFiles(args[1] + ".files");
+    dotFiles.setFileName(args[1] + QLatin1String(".files"));
     dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
-    QByteArray line = dotFiles.readLine();
-    Q_ASSERT(line == "MOC_INCLUDES:\n");
-    line = dotFiles.readLine().trimmed();
-    const QStringList incPaths = QString::fromUtf8(line).split(';');
-    foreach (const QString &path, incPaths) {
-        if (!path.isEmpty()) {
-            mocIncludes << "-I" + path;
-        }
-    }
-    line = dotFiles.readLine();
-    Q_ASSERT(line == "SOURCES:\n");
-    line = dotFiles.readLine().trimmed();
-    dotFiles.close();
-    const QStringList sourceFiles = QString::fromUtf8(line).split(';');
+
+    const QByteArray &line = dotFiles.readLine();
+    dotFilesCheck(line == "SOURCES:\n");
+    const QStringList &sourceFiles = QString::fromUtf8(dotFiles.readLine().trimmed()).split(';');
 
     // the program goes through all .cpp files to see which moc files are included. It is not really
     // interesting how the moc file is named, but what file the moc is created from. Once a moc is
@@ -388,10 +436,10 @@ bool AutoMoc::touch(const QString &_filename)
     // the files written before. Equal modification time is not good enough. Just using utime with
     // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
 #ifdef Q_OS_WIN
-    Sleep( 1000 );
-    _wutime( (wchar_t *) _filename.utf16(), 0 );
+    Sleep(1000);
+    _wutime(static_cast<const wchar_t *>(_filename.utf16()), 0);
 #else
-    QByteArray filename = QFile::encodeName( _filename );
+    const QByteArray &filename = QFile::encodeName(_filename);
     const struct timespec sleepDuration = { 1, 0 };
     nanosleep(&sleepDuration, NULL);
 
@@ -431,6 +479,11 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
     //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
     const QString mocFilePath = builddir + mocFileName;
     if (generateAll || QFileInfo(mocFilePath).lastModified() <= QFileInfo(sourceFile).lastModified()) {
+        static bool initialized = false;
+        if (!initialized) {
+            initialized = true;
+            lazyInit();
+        }
         if (verbose) {
             echoColor("Generating " + mocFilePath + " from " + sourceFile);
         } else {
