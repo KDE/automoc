@@ -104,8 +104,8 @@ void AutoMoc::printVersion()
 void AutoMoc::dotFilesCheck(bool x)
 {
     if (!x) {
-        cerr << "Error: syntax error in " << dotFiles.fileName();
-       ::exit(EXIT_FAILURE);
+        cerr << "Error: syntax error in " << dotFiles.fileName() << endl;
+        ::exit(EXIT_FAILURE);
     }
 }
 
