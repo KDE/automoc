@@ -436,7 +436,7 @@ bool AutoMoc::touch(const QString &_filename)
     // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
 #ifdef Q_OS_WIN
     Sleep(1000);
-    _wutime(static_cast<const wchar_t *>(_filename.utf16()), 0);
+    _wutime(reinterpret_cast<const wchar_t *>(_filename.utf16()), 0);
 #else
     const QByteArray &filename = QFile::encodeName(_filename);
     const struct timespec sleepDuration = { 1, 0 };
