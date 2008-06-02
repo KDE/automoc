@@ -163,6 +163,7 @@ void AutoMoc::lazyInit()
                 it.remove();
             }
         }
+        it.toFront();
         while (it.hasNext()) {
             if (it.next().startsWith(srcDir)) {
                 sortedMocIncludes << it.value();
