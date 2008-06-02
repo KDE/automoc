@@ -508,6 +508,9 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 #endif
         args << QLatin1String("-o") << mocFilePath << sourceFile;
         //qDebug() << "executing: " << mocExe << args;
+        if (verbose) {
+            cout << mocExe << " " << args.join(QLatin1String(" ")) << endl;
+        }
         mocProc->start(mocExe, args, QIODevice::NotOpen);
         if (mocProc->waitForStarted()) {
             processes.enqueue(Process(mocProc, mocFilePath));
