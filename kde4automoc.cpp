@@ -143,6 +143,12 @@ void AutoMoc::lazyInit()
         mocIncludes << "-I" + path;
     }
 
+    // on the Mac, add -F always, otherwise headers in the frameworks won't be found
+    // is it necessary to do this only optionally ? Alex
+#ifdef Q_OS_MAC
+    mocIncludes << "-F /Library/Frameworks";
+#endif
+
     line = dotFiles.readLine();
     dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:\n");
     line = dotFiles.readLine();
