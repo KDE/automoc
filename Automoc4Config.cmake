@@ -70,8 +70,9 @@ macro(AUTOMOC4 _target_NAME _SRCS)
    if(_moc_files)
       set(_automoc_source "${CMAKE_CURRENT_BINARY_DIR}/${_target_NAME}_automoc.cpp")
       get_directory_property(_moc_incs INCLUDE_DIRECTORIES)
+      get_directory_property(_moc_defs DEFINITIONS)
 
-      # configure_file replaces _moc_files and _moc_incs
+      # configure_file replaces _moc_files, _moc_incs and _moc_defs
       configure_file(${_AUTOMOC4_CURRENT_DIR}/automoc4.files.in ${_automoc_source}.files)
 
 #      add_custom_target(${_target_NAME}_automoc

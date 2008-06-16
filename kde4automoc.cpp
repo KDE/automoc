@@ -73,6 +73,7 @@ class AutoMoc
         QString builddir;
         QString mocExe;
         QStringList mocIncludes;
+        QStringList mocDefinitions;
         QStringList cmakeEchoColorArgs;
         QString cmakeExecutable;
         QFile dotFiles;
@@ -135,6 +136,17 @@ void AutoMoc::lazyInit()
     cmakeExecutable = args[5];
 
     QByteArray line = dotFiles.readLine();
+    dotFilesCheck(line == "MOC_DEFINITIONS:\n");
+    line = dotFiles.readLine().trimmed();
+    const QStringList &defList = QString::fromUtf8(line).split(' ', QString::SkipEmptyParts);
+    foreach (const QString &def, defList) {
+        Q_ASSERT(!def.isEmpty());
+        if (def.startsWith(QLatin1String("-D"))) {
+            mocDefinitions << def;
+        }
+    }
+
+    line = dotFiles.readLine();
     dotFilesCheck(line == "MOC_INCLUDES:\n");
     line = dotFiles.readLine().trimmed();
     const QStringList &incPaths = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
@@ -509,7 +521,7 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 
         QProcess *mocProc = new QProcess;
         mocProc->setProcessChannelMode(QProcess::ForwardedChannels);
-        QStringList args(mocIncludes);
+        QStringList args(mocIncludes + mocDefinitions);
 #ifdef Q_OS_WIN
         args << "-DWIN32";
 #endif
