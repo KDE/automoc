@@ -99,7 +99,7 @@ void AutoMoc::printUsage(const QString &path)
 
 void AutoMoc::printVersion()
 {
-    cout << "automoc4 1.0" << endl;
+    cout << "automoc4 0.9.83" << endl;
 }
 
 void AutoMoc::dotFilesCheck(bool x)
