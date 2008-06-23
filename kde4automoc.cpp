@@ -206,6 +206,10 @@ bool AutoMoc::run()
         printVersion();
        ::exit(0);
         }
+        else {
+        printUsage(args[0]);
+       ::exit(EXIT_FAILURE);
+        }
     }
     else if (args.size() < 5) {
         printUsage(args[0]);
