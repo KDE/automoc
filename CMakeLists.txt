@@ -17,4 +17,4 @@ set_target_properties(automoc4  PROPERTIES  SKIP_BUILD_RPATH            FALSE
 target_link_libraries(automoc4 ${QT_QTCORE_LIBRARY})
 
 install(TARGETS automoc4 DESTINATION bin)
-install(FILES Automoc4Config.cmake automoc4.files.in  DESTINATION  lib/automoc4)
+install(FILES Automoc4Config.cmake automoc4.files.in  DESTINATION  lib${LIB_SUFFIX}/automoc4)
