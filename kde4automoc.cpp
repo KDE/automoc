@@ -46,6 +46,9 @@
 #include <utime.h>
 #endif
 
+// currently this is only used for the version number, Alex
+#include "automoc4_config.h"
+
 class AutoMoc
 {
     public:
@@ -95,12 +98,12 @@ class AutoMoc
 
 void AutoMoc::printUsage(const QString &path)
 {
-    cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << endl;
+    cout << "Usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << endl;
 }
 
 void AutoMoc::printVersion()
 {
-    cout << "automoc4 0.9.84" << endl;
+    cout << "automoc4 " << AUTOMOC4_VERSION << endl;
 }
 
 void AutoMoc::dotFilesCheck(bool x)
