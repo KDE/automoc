@@ -90,16 +90,17 @@ class AutoMoc
         bool failed;
         bool automocCppChanged;
         bool generateAll;
+        bool doTouch;
 };
 
 void AutoMoc::printUsage(const QString &path)
 {
-    cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable>" << endl;
+    cout << "usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << endl;
 }
 
 void AutoMoc::printVersion()
 {
-    cout << "automoc4 0.9.83" << endl;
+    cout << "automoc4 0.9.84" << endl;
 }
 
 void AutoMoc::dotFilesCheck(bool x)
@@ -121,7 +122,7 @@ int main(int argc, char **argv)
 
 AutoMoc::AutoMoc()
     : verbose(!qgetenv("VERBOSE").isEmpty()), cerr(stderr), cout(stdout), failed(false),
-    automocCppChanged(false)
+    automocCppChanged(false), doTouch(false)
 {
     const QByteArray colorEnv = qgetenv("COLOR");
     cmakeEchoColorArgs << QLatin1String("-E") << QLatin1String("cmake_echo_color") 
@@ -135,14 +136,31 @@ void AutoMoc::lazyInit()
     mocExe = args[4];
     cmakeExecutable = args[5];
 
+    if (args.size() > 6) {
+        if (args[6] == QLatin1String("--touch")) {
+            doTouch = true;
+        }
+    }
+
     QByteArray line = dotFiles.readLine();
+    dotFilesCheck(line == "MOC_COMPILE_DEFINITIONS:\n");
+    line = dotFiles.readLine().trimmed();
+    const QStringList &cdefList = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
+    line = dotFiles.readLine();
     dotFilesCheck(line == "MOC_DEFINITIONS:\n");
     line = dotFiles.readLine().trimmed();
-    const QStringList &defList = QString::fromUtf8(line).split(' ', QString::SkipEmptyParts);
-    foreach (const QString &def, defList) {
-        Q_ASSERT(!def.isEmpty());
-        if (def.startsWith(QLatin1String("-D"))) {
-            mocDefinitions << def;
+    if (!cdefList.isEmpty()) {
+        foreach (const QString &def, cdefList) {
+            Q_ASSERT(!def.isEmpty());
+            mocDefinitions << QLatin1String("-D") + def;
+        }
+    } else {
+        const QStringList &defList = QString::fromUtf8(line).split(' ', QString::SkipEmptyParts);
+        foreach (const QString &def, defList) {
+            Q_ASSERT(!def.isEmpty());
+            if (def.startsWith(QLatin1String("-D"))) {
+                mocDefinitions << def;
+            }
         }
     }
 
@@ -445,7 +463,7 @@ bool AutoMoc::run()
 
     // update the timestamp on the _automoc.cpp.files file to make sure we get called again
     dotFiles.close();
-    if (!touch(dotFiles.fileName())) {
+    if (doTouch && !touch(dotFiles.fileName())) {
         return false;
     }
 

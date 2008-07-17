@@ -1,5 +1,7 @@
 SOURCES:
 @_moc_files@
+MOC_COMPILE_DEFINITIONS:
+@_moc_cdefs@
 MOC_DEFINITIONS:
 @_moc_defs@
 MOC_INCLUDES:
