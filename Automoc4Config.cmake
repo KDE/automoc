@@ -1,3 +1,4 @@
+set(AUTOMOC4_VERSION "0.9.84")
 
 get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
