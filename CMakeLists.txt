@@ -9,14 +9,9 @@ if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER MATCHES "icc")
 endif (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER MATCHES "icc")
 
 # set the current version number
-set(AUTOMOC4_VERSION_MAJOR  "0")
-set(AUTOMOC4_VERSION_MINOR  "9")
-set(AUTOMOC4_VERSION_PATCH "84")
-
+include(Automoc4Version.cmake)
 
 configure_file(automoc4_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/automoc4_config.h)
-configure_file(automoc4.files.in ${CMAKE_CURRENT_BINARY_DIR}/automoc4.files.in COPYONLY)
-configure_file(Automoc4Config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/Automoc4Config.cmake @ONLY)
 
 # Always include srcdir and builddir in include path
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -29,4 +24,4 @@ set_target_properties(automoc4  PROPERTIES  SKIP_BUILD_RPATH            FALSE
 target_link_libraries(automoc4 ${QT_QTCORE_LIBRARY})
 
 install(TARGETS automoc4 DESTINATION bin)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/Automoc4Config.cmake automoc4.files.in  DESTINATION  lib${LIB_SUFFIX}/automoc4)
+install(FILES Automoc4Config.cmake Automoc4Version.cmake automoc4.files.in  DESTINATION  lib${LIB_SUFFIX}/automoc4)
