@@ -16,6 +16,7 @@ set(AUTOMOC4_VERSION_PATCH "84")
 
 configure_file(automoc4_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/automoc4_config.h)
 configure_file(Automoc4Config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/Automoc4Config.cmake @ONLY)
+configure_file(automoc4.files.in ${CMAKE_CURRENT_BINARY_DIR}/automoc4.files.in COPYONLY)
 
 # Always include srcdir and builddir in include path
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
