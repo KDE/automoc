@@ -32,6 +32,7 @@ macro (AUTOMOC4_MOC_HEADERS _target_NAME)
    # and add it to the target
    if(_headers_to_moc)
        set(_automoc4_headers_${_target_NAME} "${_headers_to_moc}")
+       set(_automoc4_headers_${_target_NAME}_automoc "${_headers_to_moc}")
    endif(_headers_to_moc)
 endmacro (AUTOMOC4_MOC_HEADERS)
 
@@ -90,7 +91,7 @@ macro(ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
    set(_moc_headers)
 
    # first list all explicitly set headers
-   foreach(_header_to_moc ${ARGN} )
+   foreach(_header_to_moc ${_automoc4_headers_${_target_NAME}} )
       get_filename_component(_abs_header ${_header_to_moc} ABSOLUTE)
       list(APPEND _moc_files ${_abs_header})
       list(APPEND _moc_headers ${_abs_header})
