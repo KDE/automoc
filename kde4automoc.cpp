@@ -374,7 +374,7 @@ bool AutoMoc::run()
                                 cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
                                     absPath + basename + "{" + headerExtensions.join(",") + "}" <<
-                                    "\" do not exist." << endl;
+                                    "\" does not exist." << endl;
                                 ::exit(EXIT_FAILURE);
                         }
                     } else {
