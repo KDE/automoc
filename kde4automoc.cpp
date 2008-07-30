@@ -60,17 +60,16 @@ class AutoMoc
         void lazyInit();
         bool touch(const QString &filename);
         bool generateMoc(const QString &sourceFile, const QString &mocFileName);
-        void waitForProcesses();
         void printUsage(const QString &);
         void printVersion();
         void echoColor(const QString &msg)
         {
-            QProcess *cmakeEcho = new QProcess;
-            cmakeEcho->setProcessChannelMode(QProcess::ForwardedChannels);
+            QProcess cmakeEcho;
+            cmakeEcho.setProcessChannelMode(QProcess::ForwardedChannels);
             QStringList args(cmakeEchoColorArgs);
             args << msg;
-            cmakeEcho->start(cmakeExecutable, args, QIODevice::NotOpen);
-            processes.enqueue(Process(cmakeEcho, QString()));
+            cmakeEcho.start(cmakeExecutable, args, QIODevice::NotOpen);
+            cmakeEcho.waitForFinished(-1);
         }
 
         QString builddir;
@@ -83,13 +82,6 @@ class AutoMoc
         const bool verbose;
         QTextStream cerr;
         QTextStream cout;
-        struct Process
-        {
-            Process(QProcess *a, const QString &b) : qproc(a), mocFilePath(b) {}
-            QProcess *qproc;
-            QString mocFilePath;
-        };
-        QQueue<Process> processes;
         bool failed;
         bool automocCppChanged;
         bool generateAll;
@@ -436,9 +428,6 @@ bool AutoMoc::run()
         }
     }
 
-    // let all remaining moc processes finish
-    waitForProcesses();
-
     if (failed) {
         // if any moc process failed we don't want to touch the _automoc.cpp file so that
         // automoc4 is rerun until the issue is fixed
@@ -496,27 +485,6 @@ bool AutoMoc::touch(const QString &_filename)
     return true;
 }
 
-void AutoMoc::waitForProcesses()
-{
-    while (!processes.isEmpty()) {
-        Process proc = processes.dequeue();
-
-        bool result = proc.qproc->waitForFinished(-1);
-        //ignore errors from the cmake echo process
-        if (!proc.mocFilePath.isEmpty()) {
-            if (!result || proc.qproc->exitCode()) {
-                cerr << "automoc4: process for " << proc.mocFilePath
-                     << " failed: " << proc.qproc->errorString() << endl;
-                cerr << "pid to wait for: " << proc.qproc->pid() << endl;
-                cerr << "processes in queue: " << processes.size() << endl;
-                failed = true;
-                QFile::remove(proc.mocFilePath);
-            }
-        }
-        delete proc.qproc;
-    }
-}
-
 bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 {
     //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
@@ -533,19 +501,8 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
             echoColor("Generating " + mocFileName);
         }
 
-        // we don't want too many child processes
-#ifdef Q_OS_FREEBSD
-    static const int max_processes = 0;
-#else
-    static const int max_processes = 10;
-#endif
-
-        if (processes.size() > max_processes) {
-            waitForProcesses();
-        }
-
-        QProcess *mocProc = new QProcess;
-        mocProc->setProcessChannelMode(QProcess::ForwardedChannels);
+        QProcess mocProc;
+        mocProc.setProcessChannelMode(QProcess::ForwardedChannels);
         QStringList args(mocIncludes + mocDefinitions);
 #ifdef Q_OS_WIN
         args << "-DWIN32";
@@ -555,15 +512,21 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
         if (verbose) {
             cout << mocExe << " " << args.join(QLatin1String(" ")) << endl;
         }
-        mocProc->start(mocExe, args, QIODevice::NotOpen);
-        if (mocProc->waitForStarted()) {
-            processes.enqueue(Process(mocProc, mocFilePath));
+        mocProc.start(mocExe, args, QIODevice::NotOpen);
+        if (mocProc.waitForStarted()) {
+            const bool result = mocProc.waitForFinished(-1);
+            if (!result || mocProc.exitCode()) {
+                cerr << "automoc4: process for " << mocFilePath
+                     << " failed: " << mocProc.errorString() << endl;
+                cerr << "pid to wait for: " << mocProc.pid() << endl;
+                failed = true;
+                QFile::remove(mocFilePath);
+            }
             return true;
         } else {
             cerr << "automoc4: process for " << mocFilePath << "failed to start: " 
-                 << mocProc->errorString() << endl;
+                 << mocProc.errorString() << endl;
             failed = true;
-            delete mocProc;
         }
     }
     return false;
