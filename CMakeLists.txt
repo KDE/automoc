@@ -2,9 +2,6 @@ project(Automoc4)
 
 cmake_minimum_required(VERSION 2.4.5 FATAL_ERROR)
 
-SET (BIN_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/bin")
-SET (LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/lib${LIB_SUFFIX}/automoc4")
-
 find_package(Qt4 REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER MATCHES "icc")
@@ -26,5 +23,5 @@ set_target_properties(automoc4  PROPERTIES  SKIP_BUILD_RPATH            FALSE
 
 target_link_libraries(automoc4 ${QT_QTCORE_LIBRARY})
 
-install(TARGETS automoc4 DESTINATION ${BIN_INSTALL_DIR})
-install(FILES Automoc4Config.cmake Automoc4Version.cmake automoc4.files.in  DESTINATION  ${LIB_INSTALL_DIR})
+install(TARGETS automoc4 DESTINATION bin)
+install(FILES Automoc4Config.cmake Automoc4Version.cmake automoc4.files.in  DESTINATION  lib${LIB_SUFFIX}/automoc4)
