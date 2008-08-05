@@ -25,6 +25,7 @@
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDateTime>
+#include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QHash>
@@ -257,7 +258,7 @@ bool AutoMoc::run()
     QHash<QString, QString> includedMocs;    // key = moc source filepath, value = moc output filepath
     QHash<QString, QString> notIncludedMocs; // key = moc source filepath, value = moc output filename
 
-    QRegExp mocIncludeRegExp(QLatin1String("[\n]\\s*#\\s*include\\s+[\"<](moc_[^ \">]+\\.cpp|[^ \">]+\\.moc)[\">]"));
+    QRegExp mocIncludeRegExp(QLatin1String("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]"));
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
 #ifdef Q_OS_WIN
@@ -354,15 +355,28 @@ bool AutoMoc::run()
                 do { // call this for every moc include in the file
                     const QString currentMoc = mocIncludeRegExp.cap(1);
                     //qDebug() << "found moc include: " << currentMoc << " at offset " << matchOffset;
-                    QString basename = QFileInfo(currentMoc).completeBaseName();
-                    const bool moc_style = currentMoc.startsWith("moc_");
+                    const QFileInfo currentMocInfo(currentMoc);
+                    QString basename = currentMocInfo.completeBaseName();
+                    const bool moc_style = basename.startsWith("moc_");
+
+                    // If the moc include is of the moc_foo.cpp style we expect the Q_OBJECT class
+                    // declaration in a header file.
+                    // If the moc include is of the foo.moc style we need to look for a Q_OBJECT
+                    // macro in the current source file, if it contains the macro we generate the
+                    // moc file from the source file, else from the header.
+                    //
+                    // TODO: currently any .moc file name will be used if the source contains
+                    // Q_OBJECT
                     if (moc_style || qObjectRegExp.indexIn(contentsString) < 0) {
                         if (moc_style) {
+                            // basename should be the part of the moc filename used for finding the
+                            // correct header, so we need to remove the moc_ part
                             basename = basename.right(basename.length() - 4);
                         }
+
                         bool headerFound = false;
                         foreach (const QString &ext, headerExtensions) {
-                            QString sourceFilePath = absPath + basename + ext;
+                            const QString &sourceFilePath = absPath + basename + ext;
                             if (QFile::exists(sourceFilePath)) {
                                 headerFound = true;
                                 includedMocs.insert(sourceFilePath, currentMoc);
@@ -371,11 +385,34 @@ bool AutoMoc::run()
                             }
                         }
                         if (!headerFound) {
+                            // the moc file is in a subdir => look for the header in the same subdir
+                            if (currentMoc.indexOf('/') != -1) {
+                                const QString &filepath = absPath + currentMocInfo.path() + QLatin1Char('/') + basename;
+
+                                foreach (const QString &ext, headerExtensions) {
+                                    const QString &sourceFilePath = filepath + ext;
+                                    if (QFile::exists(sourceFilePath)) {
+                                        headerFound = true;
+                                        includedMocs.insert(sourceFilePath, currentMoc);
+                                        notIncludedMocs.remove(sourceFilePath);
+                                        break;
+                                    }
+                                }
+                                if (!headerFound) {
+                                    cerr << "automoc4: The file \"" << absFilename <<
+                                        "\" includes the moc file \"" << currentMoc << "\", but neither \"" <<
+                                        absPath + basename + "{" + headerExtensions.join(",") + "}\" nor \"" <<
+                                        filepath + "{" + headerExtensions.join(",") + "}" <<
+                                        "\" exist." << endl;
+                                    ::exit(EXIT_FAILURE);
+                                }
+                            } else {
                                 cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
                                     absPath + basename + "{" + headerExtensions.join(",") + "}" <<
                                     "\" does not exist." << endl;
                                 ::exit(EXIT_FAILURE);
+                            }
                         }
                     } else {
                         includedMocs.insert(absFilename, currentMoc);
@@ -489,7 +526,14 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 {
     //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
     const QString mocFilePath = builddir + mocFileName;
-    if (generateAll || QFileInfo(mocFilePath).lastModified() <= QFileInfo(sourceFile).lastModified()) {
+    QFileInfo mocInfo(mocFilePath);
+    if (generateAll || mocInfo.lastModified() <= QFileInfo(sourceFile).lastModified()) {
+        QDir mocDir = mocInfo.dir();
+        // make sure the directory for the resulting moc file exists
+        if (!mocDir.exists()) {
+            mocDir.mkpath(mocDir.path());
+        }
+
         static bool initialized = false;
         if (!initialized) {
             initialized = true;
