@@ -262,16 +262,12 @@ bool AutoMoc::run()
     if (outfile.exists()) {
         // set generateAll = true if MOC_COMPILE_DEFINITIONS changed
         outfile.open(QIODevice::ReadOnly | QIODevice::Text);
-        const QByteArray &buf = outfile.readLine();
-        if (buf.endsWith("*/")) {
-            // it's an old file, which doesn't contain mocDefinitions info
-            generateAll = true;
-        } else {
-            QByteArray buf = outfile.readLine();
-            buf.chop(1); // remove trailing \n
-            lazyInitMocDefinitions();
-            generateAll = (buf != mocDefinitions.join(QString(QLatin1Char(' '))).toUtf8());
-        }
+        QByteArray buf = outfile.readLine();
+        // the second line contains the joined mocDefinitions
+        buf = outfile.readLine();
+        buf.chop(1); // remove trailing \n
+        lazyInitMocDefinitions();
+        generateAll = (buf != mocDefinitions.join(QString(QLatin1Char(' '))).toUtf8());
         outfile.close();
     } else {
         generateAll = true;
