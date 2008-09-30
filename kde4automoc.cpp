@@ -284,7 +284,7 @@ bool AutoMoc::run()
     QRegExp mocIncludeRegExp(QLatin1String("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]"));
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
     // not case sensitive
     headerExtensions << ".h" << ".hpp" << ".hxx";
 #else
