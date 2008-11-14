@@ -15,6 +15,7 @@ else(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
    get_filename_component(_AUTOMOC4_BIN_DIR  "${_AUTOMOC4_BIN_DIR}" PATH)
    find_program(AUTOMOC4_EXECUTABLE automoc4 PATHS  "${_AUTOMOC4_BIN_DIR}/bin" NO_DEFAULT_PATH)
    set(_AUTOMOC4_EXECUTABLE_DEP)
+   mark_as_advanced(AUTOMOC4_EXECUTABLE)
 endif(EXISTS ${_AUTOMOC4_CURRENT_DIR}/kde4automoc.cpp)
 
 
