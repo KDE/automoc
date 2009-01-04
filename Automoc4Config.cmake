@@ -1,4 +1,53 @@
 
+# It also adds the following macros
+#  AUTOMOC4(<target> <SRCS_VAR>)
+#    Use this to run automoc4 on all files contained in the list <SRCS_VAR>.
+#
+#  AUTOMOC4_MOC_HEADERS(<target> header1.h header2.h ...)
+#    Use this to add more header files to be processed with automoc4.
+#
+#  AUTOMOC4_ADD_EXECUTABLE(<target_NAME> src1 src2 ...)
+#    This macro does the same as ADD_EXECUTABLE, but additionally
+#    adds automoc4 handling for all source files.
+#
+# AUTOMOC4_ADD_LIBRARY(<target_NAME> src1 src2 ...)
+#    This macro does the same as ADD_LIBRARY, but additionally
+#    adds automoc4 handling for all source files.
+
+# Internal helper macro, may change or be removed anytime:
+# _ADD_AUTOMOC4_TARGET(<target_NAME> <SRCS_VAR>)
+#
+# Since version 0.9.88:
+# The following two macros are only to be used for KDE4 projects
+# and do something which makes sure automoc4 works for KDE. Don't
+# use them anywhere else. See kdelibs/cmake/modules/KDE4Macros.cmake.
+# _AUTOMOC4_KDE4_PRE_TARGET_HANDLING(<target_NAME> <SRCS_VAR>)
+# _AUTOMOC4_KDE4_POST_TARGET_HANDLING(<target_NAME>)
+
+#     Copyright (C) 2007 Matthias Kretz <kretz@kde.org>
+#     Copyright (C) 2008-2009 Alexander Neundorf <neundorf@kde.org>
+# 
+#     Redistribution and use in source and binary forms, with or without
+#     modification, are permitted provided that the following conditions
+#     are met:
+# 
+#     1. Redistributions of source code must retain the above copyright
+#        notice, this list of conditions and the following disclaimer.
+#     2. Redistributions in binary form must reproduce the above copyright
+#        notice, this list of conditions and the following disclaimer in the
+#        documentation and/or other materials provided with the distribution.
+# 
+#     THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+#     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+#     OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#     IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+#     INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+#     NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#     DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#     THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+#     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 
 get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
@@ -87,7 +136,7 @@ macro(AUTOMOC4 _target_NAME _SRCS)
    endif(_moc_files)
 endmacro(AUTOMOC4)
 
-macro(ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
+macro(_ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
    set(_moc_files)
    set(_moc_headers)
 
@@ -134,22 +183,25 @@ macro(ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
       configure_file(${_AUTOMOC4_CURRENT_DIR}/automoc4.files.in ${_automoc_dotFiles})
 
       add_custom_target(${_target_NAME}
-         ALL
          COMMAND ${AUTOMOC4_EXECUTABLE}
          ${_automoc_source}
          ${CMAKE_CURRENT_SOURCE_DIR}
          ${CMAKE_CURRENT_BINARY_DIR}
          ${QT_MOC_EXECUTABLE}
          ${CMAKE_COMMAND}
-         DEPENDS ${_automoc_dotFiles} ${_AUTOMOC4_EXECUTABLE_DEP} ${_moc_headers} ${${_SRCS}}
          COMMENT ""
          VERBATIM
          )
+
+      if(_AUTOMOC4_EXECUTABLE_DEP)
+         add_dependencies(${_target_NAME} ${_AUTOMOC4_EXECUTABLE_DEP})
+      endif(_AUTOMOC4_EXECUTABLE_DEP)
+
       set_source_files_properties(${_automoc_source} PROPERTIES GENERATED TRUE)
       set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${_automoc_source})
       set(${_SRCS} ${_automoc_source} ${${_SRCS}})
    endif(_moc_files)
-endmacro(ADD_AUTOMOC4_TARGET)
+endmacro(_ADD_AUTOMOC4_TARGET)
 
 macro(AUTOMOC4_ADD_EXECUTABLE _target_NAME)
    set(_SRCS ${ARGN})
@@ -163,15 +215,10 @@ macro(AUTOMOC4_ADD_EXECUTABLE _target_NAME)
       endif(_index GREATER -1)
    endforeach(_argName)
 
-   if(MSVC)
-      add_automoc4_target("${_target_NAME}_automoc" _SRCS)
-   else(MSVC)
-      automoc4(${_target_NAME} _SRCS)
-   endif(MSVC)
+   _add_automoc4_target("${_target_NAME}_automoc" _SRCS)
    add_executable(${_target_NAME} ${_add_executable_param} ${_SRCS})
-   if(MSVC)
-      add_dependencies(${_target_NAME} "${_target_NAME}_automoc")
-   endif(MSVC)
+   add_dependencies(${_target_NAME} "${_target_NAME}_automoc")
+
 endmacro(AUTOMOC4_ADD_EXECUTABLE)
 
 macro(AUTOMOC4_ADD_LIBRARY _target_NAME)
@@ -186,13 +233,17 @@ macro(AUTOMOC4_ADD_LIBRARY _target_NAME)
       endif(_index GREATER -1)
    endforeach(_argName)
 
-   if(MSVC)
-      add_automoc4_target("${_target_NAME}_automoc" _SRCS)
-   else(MSVC)
-      automoc4(${_target_NAME} _SRCS)
-   endif(MSVC)
+   _add_automoc4_target("${_target_NAME}_automoc" _SRCS)
    add_library(${_target_NAME} ${_add_executable_param} ${_SRCS})
-   if(MSVC)
-      add_dependencies(${_target_NAME} "${_target_NAME}_automoc")
-   endif(MSVC)
+   add_dependencies(${_target_NAME} "${_target_NAME}_automoc")
 endmacro(AUTOMOC4_ADD_LIBRARY)
+
+
+macro(_AUTOMOC4_KDE4_PRE_TARGET_HANDLING _target _srcs)
+   _add_automoc4_target("${_target}_automoc" ${_srcs})
+endmacro(_AUTOMOC4_KDE4_PRE_TARGET_HANDLING)
+
+
+macro(_AUTOMOC4_KDE4_POST_TARGET_HANDLING _target)
+   add_dependencies(${_target} "${_target}_automoc")
+endmacro(_AUTOMOC4_KDE4_POST_TARGET_HANDLING)
