@@ -326,7 +326,7 @@ bool AutoMoc::run()
     foreach (const QString &absFilename, sourceFiles) {
         //qDebug() << absFilename;
         const QFileInfo sourceFileInfo(absFilename);
-        if (absFilename.endsWith(".cpp") || absFilename.endsWith(".cc") ||
+        if (absFilename.endsWith(".cpp") || absFilename.endsWith(".cc") || absFilename.endsWith(".mm") ||
                 absFilename.endsWith(".cxx") || absFilename.endsWith(".C")) {
             //qDebug() << "check .cpp file";
             QFile sourceFile(absFilename);
