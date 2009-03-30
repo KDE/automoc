@@ -47,6 +47,10 @@
 #include <utime.h>
 #endif
 
+#if defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
+#include <unistd.h>
+#endif
+
 // currently this is only used for the version number, Alex
 #include "automoc4_config.h"
 
@@ -182,7 +186,7 @@ void AutoMoc::lazyInit()
 
     // on the Mac, add -F always, otherwise headers in the frameworks won't be found
     // is it necessary to do this only optionally ? Alex
-#ifdef Q_OS_MAC
+#if defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
     mocIncludes << "-F/Library/Frameworks";
 #endif
 
@@ -284,9 +288,17 @@ bool AutoMoc::run()
     QRegExp mocIncludeRegExp(QLatin1String("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]"));
     QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
     QStringList headerExtensions;
-#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
+#if defined(Q_OS_WIN)
     // not case sensitive
     headerExtensions << ".h" << ".hpp" << ".hxx";
+#elif defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
+    headerExtensions << ".h" << ".hpp" << ".hxx";
+
+    // detect case-sensitive filesystem
+    long caseSensitive = pathconf(srcdir.toLocal8Bit(), _PC_CASE_SENSITIVE);
+    if (caseSensitive == 1) {
+        headerExtensions << ".H";
+    }
 #else
     headerExtensions << ".h" << ".hpp" << ".hxx" << ".H";
 #endif
