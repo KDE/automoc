@@ -23,10 +23,6 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// warnings just for testing cdash, will remove soon again, Alex
-#warning "this is a test"
-#warning "kdecore/network/k2socket.h blub blub test"
-
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>

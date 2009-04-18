@@ -1,5 +1,5 @@
 set(CTEST_VCS svn)
-set(CTEST_VCS_REPOSITORY https://neundorf@svn.kde.org/home/kde/trunk/kdesupport/automoc)
+set(CTEST_VCS_REPOSITORY https://svn.kde.org/home/kde/trunk/kdesupport/automoc)
 set(CTEST_CMAKE_GENERATOR "Unix Makefiles" )
 
 # set(CTEST_AVOID_SPACES FALSE)
