@@ -2,6 +2,8 @@ project(Automoc4)
 
 cmake_minimum_required(VERSION 2.4.5 FATAL_ERROR)
 
+include(CTest)
+
 find_package(Qt4 REQUIRED)
 
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER MATCHES "icc")
