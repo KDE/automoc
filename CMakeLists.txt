@@ -13,6 +13,20 @@ endif (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER MATCHES "icc")
 # set the current version number
 include(Automoc4Version.cmake)
 
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Automatic moc for Qt 4 packages")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/cpack/README.txt")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/cpack/LICENSE.txt")
+set(CPACK_PACKAGE_VERSION ${AUTOMOC4_VERSION})
+set(CPACK_PACKAGE_VERSION_MAJOR ${AUTOMOC4_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${AUTOMOC4_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${AUTOMOC4_VERSION_PATCH})
+set(CPACK_SET_DESTDIR ON)
+if (APPLE)
+   set(CPACK_PACKAGE_RELOCATABLE OFF)
+endif (APPLE)
+
+include(CPack)
+
 configure_file(automoc4_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/automoc4_config.h)
 
 # Always include srcdir and builddir in include path
