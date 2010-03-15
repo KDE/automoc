@@ -179,16 +179,22 @@ void AutoMoc::lazyInit()
     dotFilesCheck(line == "MOC_INCLUDES:\n");
     line = dotFiles.readLine().trimmed();
     const QStringList &incPaths = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
+    QSet<QString> frameworkPaths;
     foreach (const QString &path, incPaths) {
         Q_ASSERT(!path.isEmpty());
         mocIncludes << "-I" + path;
+        if (path.endsWith(".framework/Headers")) {
+            QDir framework(path);
+            // Go up twice to get to the framework root
+            framework.cdUp();
+            framework.cdUp();
+            frameworkPaths << framework.path();
+        }
     }
 
-    // on the Mac, add -F always, otherwise headers in the frameworks won't be found
-    // is it necessary to do this only optionally ? Alex
-#if defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
-    mocIncludes << "-F/Library/Frameworks";
-#endif
+    foreach (const QString &path, frameworkPaths) {
+        mocIncludes << "-F" << path;
+    }
 
     line = dotFiles.readLine();
     dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:\n");
