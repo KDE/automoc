@@ -183,7 +183,7 @@ void AutoMoc::lazyInit()
     foreach (const QString &path, incPaths) {
         Q_ASSERT(!path.isEmpty());
         mocIncludes << "-I" + path;
-        if (path.endsWith(".framework/Headers")) {
+        if (path.endsWith(QLatin1String(".framework/Headers"))) {
             QDir framework(path);
             // Go up twice to get to the framework root
             framework.cdUp();
@@ -344,8 +344,9 @@ bool AutoMoc::run()
     foreach (const QString &absFilename, sourceFiles) {
         //qDebug() << absFilename;
         const QFileInfo sourceFileInfo(absFilename);
-        if (absFilename.endsWith(".cpp") || absFilename.endsWith(".cc") || absFilename.endsWith(".mm") ||
-                absFilename.endsWith(".cxx") || absFilename.endsWith(".C")) {
+        if (absFilename.endsWith(QLatin1String(".cpp")) || absFilename.endsWith(QLatin1String(".cc")) || 
+            absFilename.endsWith(QLatin1String(".mm")) || absFilename.endsWith(QLatin1String(".cxx")) ||
+            absFilename.endsWith(QLatin1String(".C"))) {
             //qDebug() << "check .cpp file";
             QFile sourceFile(absFilename);
             sourceFile.open(QIODevice::ReadOnly);
@@ -398,7 +399,7 @@ bool AutoMoc::run()
                     //qDebug() << "found moc include: " << currentMoc << " at offset " << matchOffset;
                     const QFileInfo currentMocInfo(currentMoc);
                     QString basename = currentMocInfo.completeBaseName();
-                    const bool moc_style = basename.startsWith("moc_");
+                    const bool moc_style = basename.startsWith(QLatin1String("moc_"));
 
                     // If the moc include is of the moc_foo.cpp style we expect the Q_OBJECT class
                     // declaration in a header file.
@@ -442,15 +443,15 @@ bool AutoMoc::run()
                                 if (!headerFound) {
                                     cerr << "automoc4: The file \"" << absFilename <<
                                         "\" includes the moc file \"" << currentMoc << "\", but neither \"" <<
-                                        absPath + basename + "{" + headerExtensions.join(",") + "}\" nor \"" <<
-                                        filepath + "{" + headerExtensions.join(",") + "}" <<
+                                        absPath + basename + '{' + headerExtensions.join(",") + "}\" nor \"" <<
+                                        filepath + '{' + headerExtensions.join(",") + '}' <<
                                         "\" exist." << endl;
                                     ::exit(EXIT_FAILURE);
                                 }
                             } else {
                                 cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
-                                    absPath + basename + "{" + headerExtensions.join(",") + "}" <<
+                                    absPath + basename + '{' + headerExtensions.join(",") + '}' <<
                                     "\" does not exist." << endl;
                                 ::exit(EXIT_FAILURE);
                             }
@@ -464,8 +465,8 @@ bool AutoMoc::run()
                             matchOffset + currentMoc.length());
                 } while(matchOffset >= 0);
             }
-        } else if (absFilename.endsWith(".h") || absFilename.endsWith(".hpp") ||
-                absFilename.endsWith(".hxx") || absFilename.endsWith(".H")) {
+        } else if (absFilename.endsWith(QLatin1String(".h")) || absFilename.endsWith(QLatin1String(".hpp")) ||
+                absFilename.endsWith(QLatin1String(".hxx")) || absFilename.endsWith(QLatin1String(".H"))) {
             if (!includedMocs.contains(absFilename) && !notIncludedMocs.contains(absFilename)) {
                 // if this header is not getting processed yet and is explicitly mentioned for the
                 // automoc the moc is run unconditionally on the header and the resulting file is
