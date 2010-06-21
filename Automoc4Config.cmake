@@ -1,6 +1,4 @@
 
-cmake_minimum_required( VERSION 2.6.4 FATAL_ERROR )
-
 # It also adds the following macros
 #  AUTOMOC4(<target> <SRCS_VAR>)
 #    Use this to run automoc4 on all files contained in the list <SRCS_VAR>.
