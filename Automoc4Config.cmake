@@ -58,6 +58,8 @@ endif(COMMAND cmake_policy)
 # 2.6.4 is required because of the get_filename_component(REALPATH)
 cmake_minimum_required( VERSION 2.6.4 FATAL_ERROR )
 
+# allow duplicate target names, this is also done in FindKDE4Internal.cmake
+cmake_policy(CMP0002 OLD)
 
 get_filename_component(_AUTOMOC4_CURRENT_DIR  "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
