@@ -164,6 +164,7 @@ void AutoMoc::lazyInitMocDefinitions()
 void AutoMoc::lazyInit()
 {
     const QStringList &args = QCoreApplication::arguments();
+
     mocExe = args[4];
     cmakeExecutable = args[5];
 
@@ -246,7 +247,7 @@ bool AutoMoc::run()
        ::exit(EXIT_FAILURE);
         }
     }
-    else if (args.size() < 5) {
+    else if (args.size() < 6) {
         printUsage(args[0]);
        ::exit(EXIT_FAILURE);
     }
