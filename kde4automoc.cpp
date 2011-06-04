@@ -392,8 +392,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                 std::cerr << "automoc4: empty source file: " << absFilename << std::endl;
                 continue;
             }
-            const QString absPath = sourceFileInfo.absolutePath() + '/';
-            assert(absPath.endsWith('/'));
+            const std::string absPath = STR(sourceFileInfo.absolutePath()) + '/';
 
             std::tr1::sregex_iterator it(contentsString.begin(), contentsString.end(), mocIncludeRegExp);
             std::tr1::sregex_iterator it_end;
@@ -402,7 +401,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                 qDebug() << "no moc #include in the .cpp file";
                 const std::string basename = STR(sourceFileInfo.completeBaseName());
                 foreach (const QString &ext, headerExtensions) {
-                    const std::string headername = STR(absPath) + basename + STR(ext);
+                    const std::string headername = absPath + basename + STR(ext);
                     if (fileExists(headername) && includedMocs.find(headername) != includedMocs.end() &&
                             notIncludedMocs.find(headername) != notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + ".cpp";
@@ -415,7 +414,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                     }
                 }
                 foreach (const QString &ext, headerExtensions) {
-                    const std::string privateHeaderName = STR(absPath) + basename + "_p" + STR(ext);
+                    const std::string privateHeaderName = absPath + basename + "_p" + STR(ext);
                     if (fileExists(privateHeaderName) && includedMocs.find(privateHeaderName) != includedMocs.end() &&
                             notIncludedMocs.find(privateHeaderName) != notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + "_p.cpp";
@@ -436,8 +435,8 @@ bool AutoMoc::run(int _argc, char **_argv)
                     std::cout << "found moc include: " << currentMoc << std::endl;
 
                     const QFileInfo currentMocInfo(QQQ(currentMoc));
-                    QString basename = currentMocInfo.completeBaseName();
-                    const bool moc_style = basename.startsWith(QLatin1String("moc_"));
+                    std::string basename = STR(currentMocInfo.completeBaseName());
+                    const bool moc_style = startsWith(basename, "moc_");
 
                     // If the moc include is of the moc_foo.cpp style we expect the Q_OBJECT class
                     // declaration in a header file.
@@ -451,12 +450,12 @@ bool AutoMoc::run(int _argc, char **_argv)
                         if (moc_style) {
                             // basename should be the part of the moc filename used for finding the
                             // correct header, so we need to remove the moc_ part
-                            basename = basename.right(basename.length() - 4);
+                            basename = basename.substr(4);
                         }
 
                         bool headerFound = false;
                         foreach (const QString &ext, headerExtensions) {
-                            const std::string &sourceFilePath = STR(absPath + basename + ext);
+                            const std::string &sourceFilePath = absPath + basename + STR(ext);
                             if (fileExists(sourceFilePath)) {
                                 headerFound = true;
                                 includedMocs[sourceFilePath] = currentMoc;
@@ -467,10 +466,10 @@ bool AutoMoc::run(int _argc, char **_argv)
                         if (!headerFound) {
                             // the moc file is in a subdir => look for the header in the same subdir
                             if (currentMoc.find_first_of('/') != std::string::npos) {
-                                const QString &filepath = absPath + currentMocInfo.path() + QLatin1Char('/') + basename;
+                                const std::string &filepath = absPath + STR(currentMocInfo.path()) + '/' + basename;
 
                                 foreach (const QString &ext, headerExtensions) {
-                                    const std::string &sourceFilePath = STR(filepath + ext);
+                                    const std::string &sourceFilePath = filepath + STR(ext);
                                     if (fileExists(sourceFilePath)) {
                                         headerFound = true;
                                         includedMocs[sourceFilePath] = currentMoc;
@@ -481,15 +480,15 @@ bool AutoMoc::run(int _argc, char **_argv)
                                 if (!headerFound) {
                                     std::cerr << "automoc4: The file \"" << absFilename <<
                                         "\" includes the moc file \"" << currentMoc << "\", but neither \"" <<
-                                        STR(absPath + basename + '{' + headerExtensions.join(",") + "}\" nor \"") <<
-                                        STR(filepath + '{' + headerExtensions.join(",") + '}') <<
+                                        absPath + basename + '{' + STR(headerExtensions.join(",")) + "}\" nor \"" <<
+                                        filepath + '{' + STR(headerExtensions.join(",")) + '}' <<
                                         "\" exist." << std::endl;
                                     ::exit(EXIT_FAILURE);
                                 }
                             } else {
                                 std::cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
-                                    STR(absPath + basename + '{' + headerExtensions.join(",") + '}') <<
+                                    absPath + basename + '{' + STR(headerExtensions.join(",")) + '}' <<
                                     "\" does not exist." << std::endl;
                                 ::exit(EXIT_FAILURE);
                             }
