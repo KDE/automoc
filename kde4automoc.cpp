@@ -23,6 +23,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#define STR(x) std::string(QString(x).toLatin1())
 #include <iostream>
 #include <assert.h>
 
@@ -68,7 +69,7 @@ class AutoMoc
         void lazyInit();
         bool touch(const QString &filename);
         bool generateMoc(const QString &sourceFile, const QString &mocFileName);
-        void printUsage(const QString &);
+        void printUsage(const std::string &);
         void printVersion();
         void echoColor(const QString &msg)
         {
@@ -90,28 +91,26 @@ class AutoMoc
         QString cmakeExecutable;
         QFile dotFiles;
         const bool verbose;
-        QTextStream cerr;
-        QTextStream cout;
         bool failed;
         bool automocCppChanged;
         bool generateAll;
         bool doTouch;
 };
 
-void AutoMoc::printUsage(const QString &path)
+void AutoMoc::printUsage(const std::string &path)
 {
-    cout << "Usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << endl;
+    std::cout << "Usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << endl;
 }
 
 void AutoMoc::printVersion()
 {
-    cout << "automoc4 " << AUTOMOC4_VERSION << endl;
+    std::cout << "automoc4 " << AUTOMOC4_VERSION << endl;
 }
 
 void AutoMoc::dotFilesCheck(bool x)
 {
     if (!x) {
-        cerr << "Error: syntax error in " << dotFiles.fileName() << endl;
+        std::cerr << "Error: syntax error in " << STR(dotFiles.fileName()) << endl;
         ::exit(EXIT_FAILURE);
     }
 }
@@ -125,7 +124,7 @@ int main(int argc, char **argv)
 }
 
 AutoMoc::AutoMoc()
-    : verbose(!qgetenv("VERBOSE").isEmpty()), cerr(stderr), cout(stdout), failed(false),
+    : verbose(!qgetenv("VERBOSE").isEmpty()), failed(false),
     automocCppChanged(false), generateAll(false), doTouch(false)
 {
     const QByteArray colorEnv = qgetenv("COLOR");
@@ -357,7 +356,7 @@ bool AutoMoc::run(int _argc, char **_argv)
             sourceFile.open(QIODevice::ReadOnly);
             const QByteArray contents = sourceFile.readAll();
             if (contents.isEmpty()) {
-                cerr << "automoc4: empty source file: " << absFilename << endl;
+                std::cerr << "automoc4: empty source file: " << STR(absFilename) << endl;
                 continue;
             }
             const QString contentsString = QString::fromUtf8(contents);
@@ -446,17 +445,17 @@ bool AutoMoc::run(int _argc, char **_argv)
                                     }
                                 }
                                 if (!headerFound) {
-                                    cerr << "automoc4: The file \"" << absFilename <<
-                                        "\" includes the moc file \"" << currentMoc << "\", but neither \"" <<
-                                        absPath + basename + '{' + headerExtensions.join(",") + "}\" nor \"" <<
-                                        filepath + '{' + headerExtensions.join(",") + '}' <<
+                                    std::cerr << "automoc4: The file \"" << STR(absFilename) <<
+                                        "\" includes the moc file \"" << STR(currentMoc) << "\", but neither \"" <<
+                                        STR(absPath + basename + '{' + headerExtensions.join(",") + "}\" nor \"") <<
+                                        STR(filepath + '{' + headerExtensions.join(",") + '}') <<
                                         "\" exist." << endl;
                                     ::exit(EXIT_FAILURE);
                                 }
                             } else {
-                                cerr << "automoc4: The file \"" << absFilename <<
-                                    "\" includes the moc file \"" << currentMoc << "\", but \"" <<
-                                    absPath + basename + '{' + headerExtensions.join(",") + '}' <<
+                                std::cerr << "automoc4: The file \"" << STR(absFilename) <<
+                                    "\" includes the moc file \"" << STR(currentMoc) << "\", but \"" <<
+                                    STR(absPath + basename + '{' + headerExtensions.join(",") + '}') <<
                                     "\" does not exist." << endl;
                                 ::exit(EXIT_FAILURE);
                             }
@@ -482,7 +481,7 @@ bool AutoMoc::run(int _argc, char **_argv)
             }
         } else {
             if (verbose) {
-               cout << "automoc4: ignoring file '" << absFilename << "' with unknown suffix" << endl;
+                std::cout << "automoc4: ignoring file '" << STR(absFilename) << "' with unknown suffix" << endl;
             }
         }
     }
@@ -516,7 +515,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     if (failed) {
         // if any moc process failed we don't want to touch the _automoc.cpp file so that
         // automoc4 is rerun until the issue is fixed
-        cerr << "returning failed.."<< endl;
+        std::cerr << "returning failed.."<< endl;
         return false;
     }
     outStream.flush();
@@ -563,7 +562,7 @@ bool AutoMoc::touch(const QString &_filename)
     int err = utime(filename.constData(), NULL);
     if (err == -1) {
         err = errno;
-        cerr << strerror(err) << "\n";
+        std::cerr << strerror(err) << "\n";
         return false;
     }
 #endif
@@ -572,7 +571,7 @@ bool AutoMoc::touch(const QString &_filename)
 
 bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 {
-    //qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
+    qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
     const QString mocFilePath = builddir + mocFileName;
     QFileInfo mocInfo(mocFilePath);
     if (generateAll || mocInfo.lastModified() <= QFileInfo(sourceFile).lastModified()) {
@@ -602,22 +601,22 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
         args << QLatin1String("-o") << mocFilePath << sourceFile;
         //qDebug() << "executing: " << mocExe << args;
         if (verbose) {
-            cout << mocExe << " " << args.join(QLatin1String(" ")) << endl;
+            std::cout << STR(mocExe) << " " << STR(args.join(QLatin1String(" "))) << endl;
         }
         mocProc.start(mocExe, args, QIODevice::NotOpen);
         if (mocProc.waitForStarted()) {
             const bool result = mocProc.waitForFinished(-1);
             if (!result || mocProc.exitCode()) {
-                cerr << "automoc4: process for " << mocFilePath
-                     << " failed: " << mocProc.errorString() << endl;
-                cerr << "pid to wait for: " << mocProc.pid() << endl;
+                std::cerr << "automoc4: process for " << STR(mocFilePath)
+                     << " failed: " << STR(mocProc.errorString()) << endl;
+                std::cerr << "pid to wait for: " << mocProc.pid() << endl;
                 failed = true;
                 QFile::remove(mocFilePath);
             }
             return true;
         } else {
-            cerr << "automoc4: process for " << mocFilePath << "failed to start: " 
-                 << mocProc.errorString() << endl;
+            std::cerr << "automoc4: process for " << STR(mocFilePath) << "failed to start: "
+                 << STR(mocProc.errorString()) << endl;
             failed = true;
         }
     }
