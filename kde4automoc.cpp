@@ -24,6 +24,8 @@
 */
 
 #define STR(x) std::string(QString(x).toLatin1())
+#define QQQ(x) QString(x.c_str())
+
 #include <iostream>
 #include <assert.h>
 
@@ -67,28 +69,28 @@ class AutoMoc
         void dotFilesCheck(bool);
         void lazyInitMocDefinitions();
         void lazyInit();
-        bool touch(const QString &filename);
-        bool generateMoc(const QString &sourceFile, const QString &mocFileName);
+        bool touch(const std::string &filename);
+        bool generateMoc(const std::string &sourceFile, const std::string &mocFileName);
         void printUsage(const std::string &);
         void printVersion();
-        void echoColor(const QString &msg)
+        void echoColor(const std::string &msg)
         {
             QProcess cmakeEcho;
             cmakeEcho.setProcessChannelMode(QProcess::ForwardedChannels);
             QStringList args(cmakeEchoColorArgs);
-            args << msg;
-            cmakeEcho.start(cmakeExecutable, args, QIODevice::NotOpen);
+            args << QQQ(msg);
+            cmakeEcho.start(QQQ(cmakeExecutable), args, QIODevice::NotOpen);
             cmakeEcho.waitForFinished(-1);
         }
 
         int argc;
         char **argv;
-        QString builddir;
-        QString mocExe;
+        std::string builddir;
+        std::string mocExe;
         QStringList mocIncludes;
         QStringList mocDefinitions;
         QStringList cmakeEchoColorArgs;
-        QString cmakeExecutable;
+        std::string cmakeExecutable;
         QFile dotFiles;
         const bool verbose;
         bool failed;
@@ -257,12 +259,12 @@ bool AutoMoc::run(int _argc, char **_argv)
     QFile outfile(argv[1]);
     const QFileInfo outfileInfo(outfile);
 
-    QString srcdir(argv[2]);
-    if (!srcdir.endsWith('/')) {
+    std::string srcdir(argv[2]);
+    if (srcdir.at(srcdir.length() - 1) != '/') {
         srcdir += '/';
     }
     builddir = argv[3];
-    if (!builddir.endsWith('/')) {
+    if (builddir.at(builddir.length() - 1) != '/') {
         builddir += '/';
     }
 
@@ -305,7 +307,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     headerExtensions << ".h" << ".hpp" << ".hxx";
 
     // detect case-sensitive filesystem
-    long caseSensitive = pathconf(srcdir.toLocal8Bit(), _PC_CASE_SENSITIVE);
+    long caseSensitive = pathconf(srcdir, _PC_CASE_SENSITIVE);
     if (caseSensitive == 1) {
         headerExtensions << ".H";
     }
@@ -490,7 +492,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     QHash<QString, QString>::ConstIterator end = includedMocs.constEnd();
     QHash<QString, QString>::ConstIterator it = includedMocs.constBegin();
     for (; it != end; ++it) {
-        generateMoc(it.key(), it.value());
+        generateMoc(STR(it.key()), STR(it.value()));
     }
 
     QByteArray automocSource;
@@ -505,7 +507,7 @@ bool AutoMoc::run(int _argc, char **_argv)
         end = notIncludedMocs.constEnd();
         it = notIncludedMocs.constBegin();
         for (; it != end; ++it) {
-            if (generateMoc(it.key(), it.value())) {
+            if (generateMoc(STR(it.key()), STR(it.value()))) {
                 automocCppChanged = true;
             }
             outStream << "#include \"" << it.value() << "\"\n";
@@ -539,21 +541,21 @@ bool AutoMoc::run(int _argc, char **_argv)
 
     // update the timestamp on the _automoc.cpp.files file to make sure we get called again
     dotFiles.close();
-    if (doTouch && !touch(dotFiles.fileName())) {
+    if (doTouch && !touch(STR(dotFiles.fileName()))) {
         return false;
     }
 
     return true;
 }
 
-bool AutoMoc::touch(const QString &_filename)
+bool AutoMoc::touch(const std::string &_filename)
 {
     // sleep for 1s in order to make the modification time greater than the modification time of
     // the files written before. Equal modification time is not good enough. Just using utime with
     // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
 #ifdef Q_OS_WIN
     Sleep(1000);
-    _wutime(reinterpret_cast<const wchar_t *>(_filename.utf16()), 0);
+    _utime(_filename.c_str(), 0);
 #else
     const QByteArray &filename = QFile::encodeName(_filename);
     const struct timespec sleepDuration = { 1, 0 };
@@ -569,12 +571,13 @@ bool AutoMoc::touch(const QString &_filename)
     return true;
 }
 
-bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
+bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocFileName)
 {
-    qDebug() << Q_FUNC_INFO << sourceFile << mocFileName;
-    const QString mocFilePath = builddir + mocFileName;
-    QFileInfo mocInfo(mocFilePath);
-    if (generateAll || mocInfo.lastModified() <= QFileInfo(sourceFile).lastModified()) {
+    // DEBUG
+    std::cout << Q_FUNC_INFO << sourceFile << mocFileName;
+    const std::string mocFilePath = builddir + mocFileName;
+    QFileInfo mocInfo(QQQ(mocFilePath));
+    if (generateAll || mocInfo.lastModified() <= QFileInfo(QQQ(sourceFile)).lastModified()) {
         QDir mocDir = mocInfo.dir();
         // make sure the directory for the resulting moc file exists
         if (!mocDir.exists()) {
@@ -598,24 +601,24 @@ bool AutoMoc::generateMoc(const QString &sourceFile, const QString &mocFileName)
 #ifdef Q_OS_WIN
         args << "-DWIN32";
 #endif
-        args << QLatin1String("-o") << mocFilePath << sourceFile;
+        args << QLatin1String("-o") << QQQ(mocFilePath) << QQQ(sourceFile);
         //qDebug() << "executing: " << mocExe << args;
         if (verbose) {
-            std::cout << STR(mocExe) << " " << STR(args.join(QLatin1String(" "))) << endl;
+            std::cout << mocExe << " " << STR(args.join(QLatin1String(" "))) << endl;
         }
-        mocProc.start(mocExe, args, QIODevice::NotOpen);
+        mocProc.start(QQQ(mocExe), args, QIODevice::NotOpen);
         if (mocProc.waitForStarted()) {
             const bool result = mocProc.waitForFinished(-1);
             if (!result || mocProc.exitCode()) {
-                std::cerr << "automoc4: process for " << STR(mocFilePath)
+                std::cerr << "automoc4: process for " << mocFilePath
                      << " failed: " << STR(mocProc.errorString()) << endl;
                 std::cerr << "pid to wait for: " << mocProc.pid() << endl;
                 failed = true;
-                QFile::remove(mocFilePath);
+                QFile::remove(QQQ(mocFilePath));
             }
             return true;
         } else {
-            std::cerr << "automoc4: process for " << STR(mocFilePath) << "failed to start: "
+            std::cerr << "automoc4: process for " << mocFilePath << "failed to start: "
                  << STR(mocProc.errorString()) << endl;
             failed = true;
         }
