@@ -31,6 +31,7 @@
 #include <sstream>
 #include <assert.h>
 #include <regex>
+#include <sys/stat.h>
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
@@ -39,7 +40,6 @@
 #include <QtCore/QHash>
 #include <QtCore/QProcess>
 #include <QtCore/QQueue>
-#include <QtCore/QRegExp>
 #include <QtCore/QStringList>
 #include <QtCore/QTextStream>
 #include <QtCore/QtDebug>
@@ -85,6 +85,10 @@ class AutoMoc
             cmakeEcho.start(QQQ(cmakeExecutable), args, QIODevice::NotOpen);
             cmakeEcho.waitForFinished(-1);
         }
+
+        // Helper functions to make code clearer
+        bool fileExists(const std::string &filename);
+        std::string readAll(const std::string &filename);
 
         int argc;
         char **argv;
@@ -300,8 +304,8 @@ bool AutoMoc::run(int _argc, char **_argv)
     QHash<QString, QString> includedMocs;    // key = moc source filepath, value = moc output filepath
     QHash<QString, QString> notIncludedMocs; // key = moc source filepath, value = moc output filename
 
-    std::regex mocIncludeRegExp("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
-    QRegExp qObjectRegExp(QLatin1String("[\n]\\s*Q_OBJECT\\b"));
+    std::tr1::regex mocIncludeRegExp("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
+    std::tr1::regex qObjectRegExp("[\n]\\s*Q_OBJECT\\b");
     QStringList headerExtensions;
 #if defined(Q_OS_WIN)
     // not case sensitive
@@ -357,11 +361,7 @@ bool AutoMoc::run(int _argc, char **_argv)
         const QFileInfo sourceFileInfo(QQQ(absFilename));
         if (extension == ".cpp" || extension == ".cc" || extension == ".mm" || extension == ".cxx" ||
             extension == ".C") {
-            std::ifstream sourceFile(absFilename);
-            std::stringstream stream;
-            stream << sourceFile.rdbuf();
-            sourceFile.close();
-            const std::string contentsString = stream.str();
+            const std::string contentsString = readAll(absFilename);
             if (contentsString.size() == 0) {
                 std::cerr << "automoc4: empty source file: " << absFilename << std::endl;
                 continue;
@@ -369,38 +369,34 @@ bool AutoMoc::run(int _argc, char **_argv)
             const QString absPath = sourceFileInfo.absolutePath() + '/';
             assert(absPath.endsWith('/'));
 
-            std::sregex_iterator it(contentsString.begin(), contentsString.end(), mocIncludeRegExp);
-            std::sregex_iterator it_end;
+            std::tr1::sregex_iterator it(contentsString.begin(), contentsString.end(), mocIncludeRegExp);
+            std::tr1::sregex_iterator it_end;
             if (it == it_end) {
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 qDebug() << "no moc #include in the .cpp file";
                 const QString basename = sourceFileInfo.completeBaseName();
                 foreach (const QString &ext, headerExtensions) {
-                    const QString headername = absPath + basename + ext;
-                    if (QFile::exists(headername) && !includedMocs.contains(headername) &&
-                            !notIncludedMocs.contains(headername)) {
+                    const std::string headername = STR(absPath + basename + ext);
+                    if (fileExists(headername) && !includedMocs.contains(QQQ(headername)) &&
+                            !notIncludedMocs.contains(QQQ(headername))) {
                         const QString currentMoc = "moc_" + basename + ".cpp";
-                        QFile header(headername);
-                        header.open(QIODevice::ReadOnly);
-                        const QByteArray contents = header.readAll();
-                        if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
-                            //qDebug() << "header contains Q_OBJECT macro";
-                            notIncludedMocs.insert(headername, currentMoc);
+                        const std::string contents = readAll(headername);
+                        if (std::tr1::regex_search(contents, qObjectRegExp)) {
+                            qDebug() << "header contains Q_OBJECT macro";
+                            notIncludedMocs.insert(QQQ(headername), currentMoc);
                         }
                         break;
                     }
                 }
                 foreach (const QString &ext, headerExtensions) {
-                    const QString privateHeaderName = absPath + basename + "_p" + ext;
-                    if (QFile::exists(privateHeaderName) && !includedMocs.contains(privateHeaderName) &&
-                            !notIncludedMocs.contains(privateHeaderName)) {
+                    const std::string privateHeaderName = STR(absPath + basename + "_p" + ext);
+                    if (fileExists(privateHeaderName) && !includedMocs.contains(QQQ(privateHeaderName)) &&
+                            !notIncludedMocs.contains(QQQ(privateHeaderName))) {
                         const QString currentMoc = "moc_" + basename + "_p.cpp";
-                        QFile header(privateHeaderName);
-                        header.open(QIODevice::ReadOnly);
-                        const QByteArray contents = header.readAll();
-                        if (qObjectRegExp.indexIn(QString::fromUtf8(contents)) >= 0) {
-                            //qDebug() << "header contains Q_OBJECT macro";
-                            notIncludedMocs.insert(privateHeaderName, currentMoc);
+                        const std::string contents = readAll(privateHeaderName);
+                        if (std::tr1::regex_search(contents, qObjectRegExp)) {
+                            qDebug() << "header contains Q_OBJECT macro";
+                            notIncludedMocs.insert(QQQ(privateHeaderName), currentMoc);
                         }
                         break;
                     }
@@ -425,7 +421,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                     //
                     // TODO: currently any .moc file name will be used if the source contains
                     // Q_OBJECT
-                    if (moc_style || qObjectRegExp.indexIn(QQQ(contentsString)) < 0) {
+                    if (moc_style || !std::tr1::regex_search(contentsString, qObjectRegExp)) {
                         if (moc_style) {
                             // basename should be the part of the moc filename used for finding the
                             // correct header, so we need to remove the moc_ part
@@ -631,4 +627,19 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
         }
     }
     return false;
+}
+
+bool AutoMoc::fileExists(const std::string &filename)
+{
+    struct stat fileInfo;
+    return (stat(filename.c_str(), &fileInfo) == 0);
+}
+
+std::string AutoMoc::readAll(const std::string &filename)
+{
+    std::ifstream file(filename);
+    std::stringstream stream;
+    stream << file.rdbuf();
+    file.close();
+    return stream.str();
 }
