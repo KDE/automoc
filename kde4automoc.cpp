@@ -331,20 +331,27 @@ bool AutoMoc::run(int _argc, char **_argv)
 
     std::tr1::regex mocIncludeRegExp("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
     std::tr1::regex qObjectRegExp("[\n]\\s*Q_OBJECT\\b");
-    QStringList headerExtensions;
+    std::list<std::string> headerExtensions;
 #if defined(Q_OS_WIN)
     // not case sensitive
-    headerExtensions << ".h" << ".hpp" << ".hxx";
+    headerExtensions.push_back(".h");
+    headerExtensions.push_back(".hpp");
+    headerExtensions.push_back(".hxx");
 #elif defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
-    headerExtensions << ".h" << ".hpp" << ".hxx";
+    headerExtensions.push_back(".h");
+    headerExtensions.push_back(".hpp");
+    headerExtensions.push_back(".hxx");
 
     // detect case-sensitive filesystem
     long caseSensitive = pathconf(srcdir, _PC_CASE_SENSITIVE);
     if (caseSensitive == 1) {
-        headerExtensions << ".H";
+        headerExtensions.push_back(".H");
     }
 #else
-    headerExtensions << ".h" << ".hpp" << ".hxx" << ".H";
+    headerExtensions.push_back(".h");
+    headerExtensions.push_back(".hpp");
+    headerExtensions.push_back(".hxx");
+    headerExtensions.push_back(".H");
 #endif
     /* not safe: if a moc file is missing it's hard to get it generated if this check is "active"
     const QDateTime &lastRun = QFileInfo(dotFiles).lastModified();
@@ -400,8 +407,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 qDebug() << "no moc #include in the .cpp file";
                 const std::string basename = STR(sourceFileInfo.completeBaseName());
-                foreach (const QString &ext, headerExtensions) {
-                    const std::string headername = absPath + basename + STR(ext);
+                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
+                     it != headerExtensions.end(); ++it) {
+                    const std::string headername = absPath + basename + (*it);
                     if (fileExists(headername) && includedMocs.find(headername) != includedMocs.end() &&
                             notIncludedMocs.find(headername) != notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + ".cpp";
@@ -413,8 +421,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                         break;
                     }
                 }
-                foreach (const QString &ext, headerExtensions) {
-                    const std::string privateHeaderName = absPath + basename + "_p" + STR(ext);
+                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
+                     it != headerExtensions.end(); ++it) {
+                    const std::string privateHeaderName = absPath + basename + "_p" + (*it);
                     if (fileExists(privateHeaderName) && includedMocs.find(privateHeaderName) != includedMocs.end() &&
                             notIncludedMocs.find(privateHeaderName) != notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + "_p.cpp";
@@ -454,8 +463,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                         }
 
                         bool headerFound = false;
-                        foreach (const QString &ext, headerExtensions) {
-                            const std::string &sourceFilePath = absPath + basename + STR(ext);
+                        for (std::list<std::string>::const_iterator it = headerExtensions.begin();
+                             it != headerExtensions.end(); ++it) {
+                            const std::string &sourceFilePath = absPath + basename + (*it);
                             if (fileExists(sourceFilePath)) {
                                 headerFound = true;
                                 includedMocs[sourceFilePath] = currentMoc;
@@ -468,8 +478,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                             if (currentMoc.find_first_of('/') != std::string::npos) {
                                 const std::string &filepath = absPath + STR(currentMocInfo.path()) + '/' + basename;
 
-                                foreach (const QString &ext, headerExtensions) {
-                                    const std::string &sourceFilePath = filepath + STR(ext);
+                                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
+                                     it != headerExtensions.end(); ++it) {
+                                    const std::string &sourceFilePath = filepath + (*it);
                                     if (fileExists(sourceFilePath)) {
                                         headerFound = true;
                                         includedMocs[sourceFilePath] = currentMoc;
@@ -480,15 +491,15 @@ bool AutoMoc::run(int _argc, char **_argv)
                                 if (!headerFound) {
                                     std::cerr << "automoc4: The file \"" << absFilename <<
                                         "\" includes the moc file \"" << currentMoc << "\", but neither \"" <<
-                                        absPath + basename + '{' + STR(headerExtensions.join(",")) + "}\" nor \"" <<
-                                        filepath + '{' + STR(headerExtensions.join(",")) + '}' <<
+                                        absPath + basename + '{' + join(headerExtensions, ',') + "}\" nor \"" <<
+                                        filepath + '{' + join(headerExtensions, ',') + '}' <<
                                         "\" exist." << std::endl;
                                     ::exit(EXIT_FAILURE);
                                 }
                             } else {
                                 std::cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << currentMoc << "\", but \"" <<
-                                    absPath + basename + '{' + STR(headerExtensions.join(",")) + '}' <<
+                                    absPath + basename + '{' + join(headerExtensions, ',') + '}' <<
                                     "\" does not exist." << std::endl;
                                 ::exit(EXIT_FAILURE);
                             }
