@@ -39,7 +39,6 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QProcess>
 #include <QtCore/QQueue>
-#include <QtCore/QStringList>
 #include <QtCore/QTextStream>
 #include <QtCore/QtDebug>
 #include <cstdlib>
@@ -88,16 +87,24 @@ class AutoMoc
         // Helper functions to make code clearer
         bool fileExists(const std::string &filename);
         std::string readAll(const std::string &filename);
+        std::list<std::string> split(const std::string &input, char delimiter);
+        std::string join(const std::list<std::string> lst, char separator);
+        bool endsWith(const std::string &str, const std::string &with);
+        bool startsWith(const std::string &str, const std::string &with);
+        std::string &trim(std::string &s);
+        std::string &ltrim(std::string &s);
+        std::string &rtrim(std::string &s);
 
         int argc;
         char **argv;
         std::string builddir;
         std::string mocExe;
-        QStringList mocIncludes;
-        QStringList mocDefinitions;
+        std::list<std::string> mocIncludes;
+        std::list<std::string> mocDefinitions;
         QStringList cmakeEchoColorArgs;
         std::string cmakeExecutable;
-        QFile dotFiles;
+        std::string dotFilesName;
+        std::ifstream dotFiles;
         const bool verbose;
         bool failed;
         bool automocCppChanged;
@@ -118,7 +125,7 @@ void AutoMoc::printVersion()
 void AutoMoc::dotFilesCheck(bool x)
 {
     if (!x) {
-        std::cerr << "Error: syntax error in " << STR(dotFiles.fileName()) << std::endl;
+        std::cerr << "Error: syntax error in " << dotFilesName << std::endl;
         ::exit(EXIT_FAILURE);
     }
 }
@@ -148,24 +155,28 @@ void AutoMoc::lazyInitMocDefinitions()
         return;
     }
     done = true;
-    QByteArray line = dotFiles.readLine();
-    dotFilesCheck(line == "MOC_COMPILE_DEFINITIONS:\n");
-    line = dotFiles.readLine().trimmed();
-    const QStringList &cdefList = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
-    line = dotFiles.readLine();
-    dotFilesCheck(line == "MOC_DEFINITIONS:\n");
-    line = dotFiles.readLine().trimmed();
-    if (!cdefList.isEmpty()) {
-        foreach (const QString &def, cdefList) {
-            assert(!def.isEmpty());
-            mocDefinitions << QLatin1String("-D") + def;
+    std::string line;
+    std::getline(dotFiles, line);
+    dotFilesCheck(line == "MOC_COMPILE_DEFINITIONS:");
+    std::getline(dotFiles, line);
+    line = trim(line);
+    const std::list<std::string> &cdefList = split(line, ';');
+    std::getline(dotFiles, line);
+    dotFilesCheck(line == "MOC_DEFINITIONS:");
+    std::getline(dotFiles, line);
+    line = trim(line);
+    if (!cdefList.empty()) {
+        for(std::list<std::string>::const_iterator it = cdefList.begin(); it != cdefList.end(); ++it)
+        {
+            assert(!(*it).empty());
+            mocDefinitions.push_back("-D" + (*it));
         }
     } else {
-        const QStringList &defList = QString::fromUtf8(line).split(' ', QString::SkipEmptyParts);
-        foreach (const QString &def, defList) {
-            assert(!def.isEmpty());
-            if (def.startsWith(QLatin1String("-D"))) {
-                mocDefinitions << def;
+        const std::list<std::string> &defList = split(line, ' ');
+        for(std::list<std::string>::const_iterator it = defList.begin(); it != defList.end(); ++it) {
+            assert(!(*it).empty());
+            if (startsWith(*it, "-D")) {
+                mocDefinitions.push_back(*it);
             }
         }
     }
@@ -184,16 +195,19 @@ void AutoMoc::lazyInit()
 
     lazyInitMocDefinitions();
 
-    QByteArray line = dotFiles.readLine();
-    dotFilesCheck(line == "MOC_INCLUDES:\n");
-    line = dotFiles.readLine().trimmed();
-    const QStringList &incPaths = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
+    std::string line;
+    std::getline(dotFiles, line);
+    dotFilesCheck(line == "MOC_INCLUDES:");
+    std::getline(dotFiles, line);
+    line = trim(line);
+    const std::list<std::string> &incPaths = split(line, ';');
     QSet<QString> frameworkPaths;
-    foreach (const QString &path, incPaths) {
-        assert(!path.isEmpty());
-        mocIncludes << "-I" + path;
-        if (path.endsWith(QLatin1String(".framework/Headers"))) {
-            QDir framework(path);
+    for(std::list<std::string>::const_iterator it = incPaths.begin(); it != incPaths.end(); ++it) {
+        const std::string &path = *it;
+        assert(!path.empty());
+        mocIncludes.push_back("-I" + path);
+        if (endsWith(path, ".framework/Headers")) {
+            QDir framework(QQQ(path));
             // Go up twice to get to the framework root
             framework.cdUp();
             framework.cdUp();
@@ -202,37 +216,46 @@ void AutoMoc::lazyInit()
     }
 
     foreach (const QString &path, frameworkPaths) {
-        mocIncludes << "-F" << path;
+        mocIncludes.push_back("-F");
+        mocIncludes.push_back(STR(path));
     }
 
-    line = dotFiles.readLine();
-    dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:\n");
-    line = dotFiles.readLine();
-    if (line == "ON\n") {
-        line = dotFiles.readLine();
-        dotFilesCheck(line == "CMAKE_BINARY_DIR:\n");
-        const QString &binDir = QLatin1String("-I") + QString::fromUtf8(dotFiles.readLine().trimmed());
+    std::getline(dotFiles, line);
+    dotFilesCheck(line == "CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE:");
+    std::getline(dotFiles, line);
+    if (line == "ON") {
+        std::getline(dotFiles, line);
+        dotFilesCheck(line == "CMAKE_BINARY_DIR:");
+        std::getline(dotFiles, line);
+        line = trim(line);
+        const std::string &binDir = "-I" + line;
 
-        line = dotFiles.readLine();
-        dotFilesCheck(line == "CMAKE_SOURCE_DIR:\n");
-        const QString &srcDir = QLatin1String("-I") + QString::fromUtf8(dotFiles.readLine().trimmed());
+        std::getline(dotFiles, line);
+        dotFilesCheck(line == "CMAKE_SOURCE_DIR:");
+        std::getline(dotFiles, line);
+        line = trim(line);
+        const std::string &srcDir = "-I" + line;
 
-        QStringList sortedMocIncludes;
-        QMutableListIterator<QString> it(mocIncludes);
-        while (it.hasNext()) {
-            if (it.next().startsWith(binDir)) {
-                sortedMocIncludes << it.value();
-                it.remove();
+        std::list<std::string> sortedMocIncludes;
+        std::list<std::string>::iterator it = mocIncludes.begin();
+        while (it != mocIncludes.end()) {
+            if (startsWith(*it, binDir)) {
+                sortedMocIncludes.push_back(*it);
+                it = mocIncludes.erase(it);
+            } else {
+                ++it;
             }
         }
-        it.toFront();
-        while (it.hasNext()) {
-            if (it.next().startsWith(srcDir)) {
-                sortedMocIncludes << it.value();
-                it.remove();
+        it = mocIncludes.begin();
+        while (it != mocIncludes.end()) {
+            if (startsWith(*it, srcDir)) {
+                sortedMocIncludes.push_back(*it);
+                it = mocIncludes.erase(it);
+            } else {
+                ++it;
             }
         }
-        sortedMocIncludes += mocIncludes;
+        sortedMocIncludes.insert(sortedMocIncludes.end(), mocIncludes.begin(), mocIncludes.end());
         mocIncludes = sortedMocIncludes;
     }
 }
@@ -274,12 +297,14 @@ bool AutoMoc::run(int _argc, char **_argv)
         builddir += '/';
     }
 
-    dotFiles.setFileName(argv[1] + QLatin1String(".files"));
-    dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
-
-    const QByteArray &line = dotFiles.readLine();
-    dotFilesCheck(line == "SOURCES:\n");
-    const QStringList &sourceFiles = QString::fromUtf8(dotFiles.readLine().trimmed()).split(';', QString::SkipEmptyParts);
+    dotFilesName = std::string(argv[1]) + ".files";
+    dotFiles.open(dotFilesName);
+    std::string line;
+    std::getline(dotFiles, line);
+    dotFilesCheck(line == "SOURCES:");
+    std::getline(dotFiles, line);
+    line = trim(line);
+    const std::list<std::string> &sourceFiles = split(line, ';');
 
     if (outfile.exists()) {
         // set generateAll = true if MOC_COMPILE_DEFINITIONS changed
@@ -289,7 +314,7 @@ bool AutoMoc::run(int _argc, char **_argv)
         buf = outfile.readLine();
         buf.chop(1); // remove trailing \n
         lazyInitMocDefinitions();
-        generateAll = (buf != mocDefinitions.join(QString(QLatin1Char(' '))).toUtf8());
+        generateAll = (STR(buf) != join(mocDefinitions, ' '));
         outfile.close();
     } else {
         generateAll = true;
@@ -353,15 +378,16 @@ bool AutoMoc::run(int _argc, char **_argv)
     }
     */
 
-    foreach (const QString &_absFilename, sourceFiles) {
-        std::string absFilename = STR(_absFilename);
+    for (std::list<std::string>::const_iterator it = sourceFiles.begin();
+          it != sourceFiles.end(); ++it) {
+        const std::string &absFilename = *it;
         std::string extension = absFilename.substr(absFilename.find_last_of('.'));
 
         const QFileInfo sourceFileInfo(QQQ(absFilename));
         if (extension == ".cpp" || extension == ".cc" || extension == ".mm" || extension == ".cxx" ||
             extension == ".C") {
             const std::string contentsString = readAll(absFilename);
-            if (contentsString.size() == 0) {
+            if (contentsString.empty()) {
                 std::cerr << "automoc4: empty source file: " << absFilename << std::endl;
                 continue;
             }
@@ -492,24 +518,22 @@ bool AutoMoc::run(int _argc, char **_argv)
     }
 
     // run moc on all the moc's that are #included in source files
-    std::map<std::string, std::string>::const_iterator end = includedMocs.end();
-    std::map<std::string, std::string>::const_iterator it = includedMocs.begin();
-    for (; it != end; ++it) {
+    for (std::map<std::string, std::string>::const_iterator it = includedMocs.begin();
+         it != includedMocs.end(); ++it) {
         generateMoc(it->first, it->second);
     }
 
     QByteArray automocSource;
     QTextStream outStream(&automocSource, QIODevice::WriteOnly);
     outStream << "/* This file is autogenerated, do not edit\n"
-        << mocDefinitions.join(QString(QLatin1Char(' '))) << "\n*/\n";
+        << QQQ(join(mocDefinitions, ' ')) << "\n*/\n";
 
     if (notIncludedMocs.size() == 0) {
         outStream << "enum some_compilers { need_more_than_nothing };\n";
     } else {
         // run moc on the remaining headers and include them in the _automoc.cpp file
-        end = notIncludedMocs.end();
-        it = notIncludedMocs.begin();
-        for (; it != end; ++it) {
+        for (std::map<std::string, std::string>::const_iterator it = notIncludedMocs.begin();
+             it != notIncludedMocs.end(); ++it) {
             if (generateMoc(it->first, it->second)) {
                 automocCppChanged = true;
             }
@@ -544,7 +568,7 @@ bool AutoMoc::run(int _argc, char **_argv)
 
     // update the timestamp on the _automoc.cpp.files file to make sure we get called again
     dotFiles.close();
-    if (doTouch && !touch(STR(dotFiles.fileName()))) {
+    if (doTouch && !touch(dotFilesName)) {
         return false;
     }
 
@@ -577,7 +601,7 @@ bool AutoMoc::touch(const std::string &_filename)
 bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocFileName)
 {
     // DEBUG
-    //std::cout << Q_FUNC_INFO << sourceFile << mocFileName << std::endl;
+    std::cout << Q_FUNC_INFO << sourceFile << mocFileName << std::endl;
     const std::string mocFilePath = builddir + mocFileName;
     QFileInfo mocInfo(QQQ(mocFilePath));
     if (generateAll || mocInfo.lastModified() <= QFileInfo(QQQ(sourceFile)).lastModified()) {
@@ -600,7 +624,16 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
 
         QProcess mocProc;
         mocProc.setProcessChannelMode(QProcess::ForwardedChannels);
-        QStringList args(mocIncludes + mocDefinitions);
+        QStringList args;
+
+        for (std::list<std::string>::const_iterator it = mocIncludes.begin();
+             it != mocIncludes.end(); ++it) {
+            args.append(QQQ((*it)));
+        }
+        for (std::list<std::string>::const_iterator it = mocDefinitions.begin();
+             it != mocDefinitions.end(); ++it) {
+            args.append(QQQ((*it)));
+        }
 #ifdef Q_OS_WIN
         args << "-DWIN32";
 #endif
@@ -642,4 +675,64 @@ std::string AutoMoc::readAll(const std::string &filename)
     stream << file.rdbuf();
     file.close();
     return stream.str();
+}
+
+// Splits a string according to a delimiter, and skips empty parts
+std::list<std::string> AutoMoc::split(const std::string &input, char delimiter)
+{
+    std::list<std::string> result;
+    std::stringstream stream(input);
+    std::string item;
+    while(std::getline(stream, item, delimiter)) {
+        if (!item.empty()) {
+            result.push_back(item);
+        }
+    }
+    return result;
+}
+
+std::string AutoMoc::join(const std::list<std::string> lst, char separator)
+{
+    std::string result;
+    std::list<std::string>::const_iterator it = lst.begin();
+    std::list<std::string>::const_iterator end = lst.end();
+    while (it != end) {
+        result += (*it) + separator;
+        ++it;
+    }
+    result.erase(result.end() - 1);
+    return result;
+}
+
+bool AutoMoc::startsWith(const std::string &str, const std::string &with)
+{
+    return (str.substr(0, with.length()) == with);
+}
+
+bool AutoMoc::endsWith(const std::string &str, const std::string &with)
+{
+    if (with.length() > (str.length())) {
+        return false;
+    }
+    return (str.substr(str.length() - with.length(), with.length()) == with);
+}
+
+// trim from start
+std::string &AutoMoc::ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(::isspace))));
+    return s;
+}
+
+// trim from end
+std::string &AutoMoc::rtrim(std::string &s)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(::isspace))).base(), s.end());
+    return s;
+}
+
+// trim from both ends
+std::string &AutoMoc::trim(std::string &s)
+{
+    return ltrim(rtrim(s));
 }
