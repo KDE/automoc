@@ -32,13 +32,13 @@
 #include <assert.h>
 #include <regex>
 #include <sys/stat.h>
+#include <set>
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QProcess>
-#include <QtCore/QQueue>
 #include <QtCore/QTextStream>
 #include <QtCore/QtDebug>
 #include <cstdlib>
@@ -168,13 +168,13 @@ void AutoMoc::lazyInitMocDefinitions()
     if (!cdefList.empty()) {
         for(std::list<std::string>::const_iterator it = cdefList.begin(); it != cdefList.end(); ++it)
         {
-            assert(!(*it).empty());
+            assert(!it->empty());
             mocDefinitions.push_back("-D" + (*it));
         }
     } else {
         const std::list<std::string> &defList = split(line, ' ');
         for(std::list<std::string>::const_iterator it = defList.begin(); it != defList.end(); ++it) {
-            assert(!(*it).empty());
+            assert(!it->empty());
             if (startsWith(*it, "-D")) {
                 mocDefinitions.push_back(*it);
             }
@@ -201,7 +201,7 @@ void AutoMoc::lazyInit()
     std::getline(dotFiles, line);
     line = trim(line);
     const std::list<std::string> &incPaths = split(line, ';');
-    QSet<QString> frameworkPaths;
+    std::set<std::string> frameworkPaths;
     for(std::list<std::string>::const_iterator it = incPaths.begin(); it != incPaths.end(); ++it) {
         const std::string &path = *it;
         assert(!path.empty());
@@ -211,13 +211,14 @@ void AutoMoc::lazyInit()
             // Go up twice to get to the framework root
             framework.cdUp();
             framework.cdUp();
-            frameworkPaths << framework.path();
+            frameworkPaths.insert(STR(framework.path()));
         }
     }
 
-    foreach (const QString &path, frameworkPaths) {
+    for (std::set<std::string>::const_iterator it = frameworkPaths.begin();
+         it != frameworkPaths.end(); ++it) {
         mocIncludes.push_back("-F");
-        mocIncludes.push_back(STR(path));
+        mocIncludes.push_back(*it);
     }
 
     std::getline(dotFiles, line);
