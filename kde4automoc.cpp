@@ -23,7 +23,9 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <QtCore/QCoreApplication>
+#include <iostream>
+#include <assert.h>
+
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
@@ -58,7 +60,7 @@ class AutoMoc
 {
     public:
         AutoMoc();
-        bool run();
+        bool run(int argc, char **argv);
 
     private:
         void dotFilesCheck(bool);
@@ -78,6 +80,8 @@ class AutoMoc
             cmakeEcho.waitForFinished(-1);
         }
 
+        int argc;
+        char **argv;
         QString builddir;
         QString mocExe;
         QStringList mocIncludes;
@@ -114,8 +118,7 @@ void AutoMoc::dotFilesCheck(bool x)
 
 int main(int argc, char **argv)
 {
-    QCoreApplication app(argc, argv);
-    if (!AutoMoc().run()) {
+    if (!AutoMoc().run(argc, argv)) {
         return EXIT_FAILURE;
     }
     return 0;
@@ -147,13 +150,13 @@ void AutoMoc::lazyInitMocDefinitions()
     line = dotFiles.readLine().trimmed();
     if (!cdefList.isEmpty()) {
         foreach (const QString &def, cdefList) {
-            Q_ASSERT(!def.isEmpty());
+            assert(!def.isEmpty());
             mocDefinitions << QLatin1String("-D") + def;
         }
     } else {
         const QStringList &defList = QString::fromUtf8(line).split(' ', QString::SkipEmptyParts);
         foreach (const QString &def, defList) {
-            Q_ASSERT(!def.isEmpty());
+            assert(!def.isEmpty());
             if (def.startsWith(QLatin1String("-D"))) {
                 mocDefinitions << def;
             }
@@ -163,13 +166,11 @@ void AutoMoc::lazyInitMocDefinitions()
 
 void AutoMoc::lazyInit()
 {
-    const QStringList &args = QCoreApplication::arguments();
+    mocExe = argv[4];
+    cmakeExecutable = argv[5];
 
-    mocExe = args[4];
-    cmakeExecutable = args[5];
-
-    if (args.size() > 6) {
-        if (args[6] == QLatin1String("--touch")) {
+    if (argc > 6) {
+        if (argv[6] == QLatin1String("--touch")) {
             doTouch = true;
         }
     }
@@ -182,7 +183,7 @@ void AutoMoc::lazyInit()
     const QStringList &incPaths = QString::fromUtf8(line).split(';', QString::SkipEmptyParts);
     QSet<QString> frameworkPaths;
     foreach (const QString &path, incPaths) {
-        Q_ASSERT(!path.isEmpty());
+        assert(!path.isEmpty());
         mocIncludes << "-I" + path;
         if (path.endsWith(QLatin1String(".framework/Headers"))) {
             QDir framework(path);
@@ -229,41 +230,44 @@ void AutoMoc::lazyInit()
     }
 }
 
-bool AutoMoc::run()
+bool AutoMoc::run(int _argc, char **_argv)
 {
-    const QStringList &args = QCoreApplication::arguments();
-    Q_ASSERT(args.size() > 0);
-    if (args.size() == 2) {
-        if ((args[1]=="--help") || (args[1]=="-h")) {
-        printUsage(args[0]);
+    assert(_argc > 0);
+
+    argc = _argc;
+    argv = _argv;
+
+    if (argc == 2) {
+        if ((argv[1]=="--help") || (argv[1]=="-h")) {
+        printUsage(argv[0]);
        ::exit(0);
         }
-        else if (args[1]=="--version") {
+        else if (argv[1]=="--version") {
         printVersion();
        ::exit(0);
         }
         else {
-        printUsage(args[0]);
+        printUsage(argv[0]);
        ::exit(EXIT_FAILURE);
         }
     }
-    else if (args.size() < 6) {
-        printUsage(args[0]);
+    else if (argc < 6) {
+        printUsage(argv[0]);
        ::exit(EXIT_FAILURE);
     }
-    QFile outfile(args[1]);
+    QFile outfile(argv[1]);
     const QFileInfo outfileInfo(outfile);
 
-    QString srcdir(args[2]);
+    QString srcdir(argv[2]);
     if (!srcdir.endsWith('/')) {
         srcdir += '/';
     }
-    builddir = args[3];
+    builddir = argv[3];
     if (!builddir.endsWith('/')) {
         builddir += '/';
     }
 
-    dotFiles.setFileName(args[1] + QLatin1String(".files"));
+    dotFiles.setFileName(argv[1] + QLatin1String(".files"));
     dotFiles.open(QIODevice::ReadOnly | QIODevice::Text);
 
     const QByteArray &line = dotFiles.readLine();
@@ -358,7 +362,7 @@ bool AutoMoc::run()
             }
             const QString contentsString = QString::fromUtf8(contents);
             const QString absPath = sourceFileInfo.absolutePath() + '/';
-            Q_ASSERT(absPath.endsWith('/'));
+            assert(absPath.endsWith('/'));
             int matchOffset = mocIncludeRegExp.indexIn(contentsString);
             if (matchOffset < 0) {
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
