@@ -27,6 +27,8 @@
 #define QQQ(x) QString(x.c_str())
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <assert.h>
 
 #include <QtCore/QDateTime>
@@ -347,21 +349,22 @@ bool AutoMoc::run(int _argc, char **_argv)
     }
     */
 
-    foreach (const QString &absFilename, sourceFiles) {
-        //qDebug() << absFilename;
-        const QFileInfo sourceFileInfo(absFilename);
-        if (absFilename.endsWith(QLatin1String(".cpp")) || absFilename.endsWith(QLatin1String(".cc")) || 
-            absFilename.endsWith(QLatin1String(".mm")) || absFilename.endsWith(QLatin1String(".cxx")) ||
-            absFilename.endsWith(QLatin1String(".C"))) {
-            //qDebug() << "check .cpp file";
-            QFile sourceFile(absFilename);
-            sourceFile.open(QIODevice::ReadOnly);
-            const QByteArray contents = sourceFile.readAll();
-            if (contents.isEmpty()) {
-                std::cerr << "automoc4: empty source file: " << STR(absFilename) << endl;
+    foreach (const QString &_absFilename, sourceFiles) {
+        std::string absFilename = STR(_absFilename);
+        std::string extension = absFilename.substr(absFilename.find_last_of('.'));
+        std::cout << extension;
+
+        const QFileInfo sourceFileInfo(QQQ(absFilename));
+        if (extension == ".cpp" || extension == ".cc" || extension == ".mm" || extension == ".cxx" ||
+            extension == ".C") {
+            std::ifstream sourceFile(absFilename);
+            std::stringstream stream;
+            stream << sourceFile.rdbuf();
+            const QString contentsString = QQQ(stream.str());
+            if (contentsString.isEmpty()) {
+                std::cerr << "automoc4: empty source file: " << absFilename << endl;
                 continue;
             }
-            const QString contentsString = QString::fromUtf8(contents);
             const QString absPath = sourceFileInfo.absolutePath() + '/';
             assert(absPath.endsWith('/'));
             int matchOffset = mocIncludeRegExp.indexIn(contentsString);
@@ -447,7 +450,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                                     }
                                 }
                                 if (!headerFound) {
-                                    std::cerr << "automoc4: The file \"" << STR(absFilename) <<
+                                    std::cerr << "automoc4: The file \"" << absFilename <<
                                         "\" includes the moc file \"" << STR(currentMoc) << "\", but neither \"" <<
                                         STR(absPath + basename + '{' + headerExtensions.join(",") + "}\" nor \"") <<
                                         STR(filepath + '{' + headerExtensions.join(",") + '}') <<
@@ -455,7 +458,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                                     ::exit(EXIT_FAILURE);
                                 }
                             } else {
-                                std::cerr << "automoc4: The file \"" << STR(absFilename) <<
+                                std::cerr << "automoc4: The file \"" << absFilename <<
                                     "\" includes the moc file \"" << STR(currentMoc) << "\", but \"" <<
                                     STR(absPath + basename + '{' + headerExtensions.join(",") + '}') <<
                                     "\" does not exist." << endl;
@@ -463,27 +466,27 @@ bool AutoMoc::run(int _argc, char **_argv)
                             }
                         }
                     } else {
-                        includedMocs.insert(absFilename, currentMoc);
-                        notIncludedMocs.remove(absFilename);
+                        includedMocs.insert(QQQ(absFilename), currentMoc);
+                        notIncludedMocs.remove(QQQ(absFilename));
                     }
 
                     matchOffset = mocIncludeRegExp.indexIn(contentsString,
                             matchOffset + currentMoc.length());
                 } while(matchOffset >= 0);
             }
-        } else if (absFilename.endsWith(QLatin1String(".h")) || absFilename.endsWith(QLatin1String(".hpp")) ||
-                absFilename.endsWith(QLatin1String(".hxx")) || absFilename.endsWith(QLatin1String(".H"))) {
-            if (!includedMocs.contains(absFilename) && !notIncludedMocs.contains(absFilename)) {
+        } else if (extension == ".h" || extension == ".hpp" ||
+                extension == ".hxx" || extension == ".H") {
+            if (!includedMocs.contains(QQQ(absFilename)) && !notIncludedMocs.contains(QQQ(absFilename))) {
                 // if this header is not getting processed yet and is explicitly mentioned for the
                 // automoc the moc is run unconditionally on the header and the resulting file is
                 // included in the _automoc.cpp file (unless there's a .cpp file later on that
                 // includes the moc from this header)
                 const QString currentMoc = "moc_" + sourceFileInfo.completeBaseName() + ".cpp";
-                notIncludedMocs.insert(absFilename, currentMoc);
+                notIncludedMocs.insert(QQQ(absFilename), currentMoc);
             }
         } else {
             if (verbose) {
-                std::cout << "automoc4: ignoring file '" << STR(absFilename) << "' with unknown suffix" << endl;
+                std::cout << "automoc4: ignoring file '" << absFilename << "' with unknown suffix" << endl;
             }
         }
     }
