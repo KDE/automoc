@@ -134,13 +134,14 @@ int main(int argc, char **argv)
 }
 
 AutoMoc::AutoMoc()
-    : verbose(getenv("VERBOSE")), failed(false),
+    : verbose(cmsys::SystemTools::GetEnv("VERBOSE") != 0), failed(false),
     automocCppChanged(false), generateAll(false), doTouch(false)
 {
-    const char *colorEnv = getenv("COLOR");
+    std::string colorEnv = "";
+    cmsys::SystemTools::GetEnv("COLOR", colorEnv);
     cmakeEchoColorArgs.push_back("-E");
     cmakeEchoColorArgs.push_back("cmake_echo_color");
-    cmakeEchoColorArgs.push_back("--switch=" + std::string(colorEnv ? colorEnv : ""));
+    cmakeEchoColorArgs.push_back("--switch=" + colorEnv);
     cmakeEchoColorArgs.push_back("--blue");
     cmakeEchoColorArgs.push_back("--bold");
 }
