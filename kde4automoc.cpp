@@ -1,5 +1,6 @@
 /*
     Copyright (C) 2007 Matthias Kretz <kretz@kde.org>
+                  2011 Gregory Schlomoff <gregory.schlomoff@gmail.com>
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions
@@ -23,8 +24,10 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define STR(x) std::string(QString(x).toLatin1())
-#define QQQ(x) QString(x.c_str())
+// Temporary macros to convert between std::string and QString.
+// Remove them when porting away from Qt is completed
+#define STR(x) std::string(QString(x).toLatin1())   // QString -> std::string
+#define QQQ(x) QString(x.c_str())                   // std::string -> QString
 
 #include <iostream>
 #include <fstream>
@@ -33,12 +36,12 @@
 #include <regex>
 #include <sys/stat.h>
 #include <set>
+#include <map>
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
 #include <QtCore/QProcess>
-#include <QtCore/QtDebug>
 #include <cstdlib>
 #include <sys/types.h>
 #include <time.h>
@@ -147,7 +150,7 @@ AutoMoc::AutoMoc()
     const char *colorEnv = getenv("COLOR");
     cmakeEchoColorArgs.push_back("-E");
     cmakeEchoColorArgs.push_back("cmake_echo_color");
-    cmakeEchoColorArgs.push_back("--switch=" + std::string(colorEnv));
+    cmakeEchoColorArgs.push_back("--switch=" + std::string(colorEnv ? colorEnv : ""));
     cmakeEchoColorArgs.push_back("--blue");
     cmakeEchoColorArgs.push_back("--bold");
 }
@@ -409,7 +412,7 @@ bool AutoMoc::run(int _argc, char **_argv)
             std::tr1::sregex_iterator it_end;
             if (it == it_end) {
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
-                qDebug() << "no moc #include in the .cpp file";
+                //std::cout << "no moc #include in the .cpp file";
                 const std::string basename = STR(sourceFileInfo.completeBaseName());
                 for (std::list<std::string>::const_iterator it = headerExtensions.begin();
                      it != headerExtensions.end(); ++it) {
@@ -419,7 +422,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                         const std::string currentMoc = "moc_" + basename + ".cpp";
                         const std::string contents = readAll(headername);
                         if (std::tr1::regex_search(contents, qObjectRegExp)) {
-                            qDebug() << "header contains Q_OBJECT macro";
+                            //std::out << "header contains Q_OBJECT macro";
                             notIncludedMocs[headername] = currentMoc;
                         }
                         break;
@@ -433,7 +436,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                         const std::string currentMoc = "moc_" + basename + "_p.cpp";
                         const std::string contents = readAll(privateHeaderName);
                         if (std::tr1::regex_search(contents, qObjectRegExp)) {
-                            qDebug() << "header contains Q_OBJECT macro";
+                            //std::out << "header contains Q_OBJECT macro";
                             notIncludedMocs[privateHeaderName] = currentMoc;
                         }
                         break;
@@ -444,8 +447,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                 for (; it != it_end; ++it)
                 {
                     const std::string currentMoc = (*it)[1];
-                    // DEBUG
-                    std::cout << "found moc include: " << currentMoc << std::endl;
+                    //std::cout << "found moc include: " << currentMoc << std::endl;
 
                     const QFileInfo currentMocInfo(QQQ(currentMoc));
                     std::string basename = STR(currentMocInfo.completeBaseName());
@@ -611,8 +613,7 @@ bool AutoMoc::touch(const std::string &filename)
 
 bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocFileName)
 {
-    // DEBUG
-    std::cout << "AutoMoc::generateMoc" << sourceFile << mocFileName << std::endl;
+    //std::cout << "AutoMoc::generateMoc" << sourceFile << mocFileName << std::endl;
     const std::string mocFilePath = builddir + mocFileName;
     QFileInfo mocInfo(QQQ(mocFilePath));
     if (generateAll || mocInfo.lastModified() <= QFileInfo(QQQ(sourceFile)).lastModified()) {
@@ -649,7 +650,7 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
         args << "-DWIN32";
 #endif
         args << QLatin1String("-o") << QQQ(mocFilePath) << QQQ(sourceFile);
-        //qDebug() << "executing: " << mocExe << args;
+        //std::out << "executing: " << mocExe << args;
         if (verbose) {
             std::cout << mocExe << " " << STR(args.join(QLatin1String(" "))) << std::endl;
         }
