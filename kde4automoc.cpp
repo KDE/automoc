@@ -39,6 +39,8 @@
 #include <map>
 
 #include "cmSystemTools.h"
+#include "cmsys/RegularExpression.hxx"
+
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
@@ -335,7 +337,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     std::map<std::string, std::string> includedMocs;    // key = moc source filepath, value = moc output filepath
     std::map<std::string, std::string> notIncludedMocs; // key = moc source filepath, value = moc output filename
 
-    std::tr1::regex mocIncludeRegExp("[\n]\\s*#\\s*include\\s+[\"<]((?:[^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
+    cmsys::RegularExpression mocIncludeRegExp("[\n][ \t]*#[ \t]*include[ \t]+[\"<](([^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
     std::tr1::regex qObjectRegExp("[\n]\\s*Q_OBJECT\\b");
     std::list<std::string> headerExtensions;
 #if defined(Q_OS_WIN)
@@ -407,9 +409,8 @@ bool AutoMoc::run(int _argc, char **_argv)
             }
             const std::string absPath = STR(sourceFileInfo.absolutePath()) + '/';
 
-            std::tr1::sregex_iterator it(contentsString.begin(), contentsString.end(), mocIncludeRegExp);
-            std::tr1::sregex_iterator it_end;
-            if (it == it_end) {
+            int matchOffset = 0;
+            if (!mocIncludeRegExp.find(contentsString.c_str())) {
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 //std::cout << "no moc #include in the .cpp file";
                 const std::string basename = STR(sourceFileInfo.completeBaseName());
@@ -443,9 +444,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                 }
             } else {
                 // for every moc include in the file
-                for (; it != it_end; ++it)
+                do
                 {
-                    const std::string currentMoc = (*it)[1];
+                    const std::string currentMoc = mocIncludeRegExp.match(1);
                     //std::cout << "found moc include: " << currentMoc << std::endl;
 
                     const QFileInfo currentMocInfo(QQQ(currentMoc));
@@ -513,7 +514,8 @@ bool AutoMoc::run(int _argc, char **_argv)
                         includedMocs[absFilename] = currentMoc;
                         notIncludedMocs.erase(absFilename);
                     }
-                }
+                    matchOffset += mocIncludeRegExp.end();
+                } while(mocIncludeRegExp.find(contentsString.c_str() + matchOffset));
             }
         } else if (extension == ".h" || extension == ".hpp" ||
                 extension == ".hxx" || extension == ".H") {
