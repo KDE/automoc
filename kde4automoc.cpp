@@ -36,14 +36,14 @@
 #include <time.h>
 #include <errno.h>
 
-#ifdef Q_OS_WIN
+#ifdef _WIN32
 #include <windows.h>
 #include <sys/utime.h>
 #else
 #include <utime.h>
 #endif
 
-#if defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
+#if defined(__APPLE__)
 #include <unistd.h>
 #endif
 
@@ -330,12 +330,12 @@ bool AutoMoc::run(int _argc, char **_argv)
     cmsys::RegularExpression mocIncludeRegExp("[\n][ \t]*#[ \t]*include[ \t]+[\"<](([^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
     cmsys::RegularExpression qObjectRegExp("[\n][ \t]*Q_OBJECT[^a-zA-Z0-9_]");
     std::list<std::string> headerExtensions;
-#if defined(Q_OS_WIN)
+#if defined(_WIN32)
     // not case sensitive
     headerExtensions.push_back(".h");
     headerExtensions.push_back(".hpp");
     headerExtensions.push_back(".hxx");
-#elif defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
+#elif defined(__APPLE__)
     headerExtensions.push_back(".h");
     headerExtensions.push_back(".hpp");
     headerExtensions.push_back(".hxx");
@@ -585,7 +585,7 @@ bool AutoMoc::touch(const std::string &filename)
     // sleep for 1s in order to make the modification time greater than the modification time of
     // the files written before. Equal modification time is not good enough. Just using utime with
     // time(NULL) + 1 is also not a good solution as then make will complain about clock skew.
-#ifdef Q_OS_WIN
+#ifdef _WIN32
     Sleep(1000);
     _utime(filename.c_str(), 0);
 #else
@@ -635,7 +635,7 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
              it != mocDefinitions.end(); ++it) {
             command.push_back(*it);
         }
-#ifdef Q_OS_WIN
+#ifdef _WIN32
         command.push_back("-DWIN32");
 #endif
         command.push_back("-o");
