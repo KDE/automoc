@@ -24,11 +24,6 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Temporary macros to convert between std::string and QString.
-// Remove them when porting away from Qt is completed
-#define STR(x) std::string(QString(x).toLatin1())   // QString -> std::string
-#define QQQ(x) QString(x.c_str())                   // std::string -> QString
-
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -36,14 +31,6 @@
 #include <sys/stat.h>
 #include <set>
 #include <map>
-
-#include "cmSystemTools.h"
-#include "cmsys/RegularExpression.hxx"
-#include "cmsys/SystemTools.hxx"
-
-#include <QtCore/QDateTime>
-#include <QtCore/QDir>
-#include <QtCore/QFileInfo>
 #include <cstdlib>
 #include <sys/types.h>
 #include <time.h>
@@ -59,6 +46,10 @@
 #if defined(Q_OS_DARWIN) || defined(Q_OS_MAC)
 #include <unistd.h>
 #endif
+
+#include "cmSystemTools.h"
+#include "cmsys/RegularExpression.hxx"
+#include "cmsys/SystemTools.hxx"
 
 // currently this is only used for the version number, Alex
 #include "automoc4_config.h"
@@ -398,7 +389,6 @@ bool AutoMoc::run(int _argc, char **_argv)
         const std::string &absFilename = *it;
         std::string extension = absFilename.substr(absFilename.find_last_of('.'));
 
-        const QFileInfo sourceFileInfo(QQQ(absFilename));
         if (extension == ".cpp" || extension == ".cc" || extension == ".mm" || extension == ".cxx" ||
             extension == ".C") {
             const std::string contentsString = readAll(absFilename);
@@ -406,13 +396,14 @@ bool AutoMoc::run(int _argc, char **_argv)
                 std::cerr << "automoc4: empty source file: " << absFilename << std::endl;
                 continue;
             }
-            const std::string absPath = STR(sourceFileInfo.absolutePath()) + '/';
+            const std::string absPath = cmsys::SystemTools::GetFilenamePath(
+                        cmsys::SystemTools::GetRealPath(absFilename.c_str())) + '/';
 
             int matchOffset = 0;
             if (!mocIncludeRegExp.find(contentsString.c_str())) {
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 //std::cout << "no moc #include in the .cpp file";
-                const std::string basename = STR(sourceFileInfo.completeBaseName());
+                const std::string basename = cmsys::SystemTools::GetFilenameWithoutLastExtension(absFilename);
                 for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
                      ext != headerExtensions.end(); ++ext) {
                     const std::string headername = absPath + basename + (*ext);
@@ -448,8 +439,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                     const std::string currentMoc = mocIncludeRegExp.match(1);
                     //std::cout << "found moc include: " << currentMoc << std::endl;
 
-                    const QFileInfo currentMocInfo(QQQ(currentMoc));
-                    std::string basename = STR(currentMocInfo.completeBaseName());
+                    std::string basename = cmsys::SystemTools::GetFilenameWithoutLastExtension(currentMoc);
                     const bool moc_style = startsWith(basename, "moc_");
 
                     // If the moc include is of the moc_foo.cpp style we expect the Q_OBJECT class
@@ -481,7 +471,8 @@ bool AutoMoc::run(int _argc, char **_argv)
                         if (!headerFound) {
                             // the moc file is in a subdir => look for the header in the same subdir
                             if (currentMoc.find_first_of('/') != std::string::npos) {
-                                const std::string &filepath = absPath + STR(currentMocInfo.path()) + '/' + basename;
+                                const std::string &filepath = absPath +
+                                        cmsys::SystemTools::GetFilenamePath(currentMoc) + '/' + basename;
 
                                 for (std::list<std::string>::const_iterator it = headerExtensions.begin();
                                      it != headerExtensions.end(); ++it) {
@@ -524,7 +515,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                 // automoc the moc is run unconditionally on the header and the resulting file is
                 // included in the _automoc.cpp file (unless there's a .cpp file later on that
                 // includes the moc from this header)
-                const std::string currentMoc = "moc_" + STR(sourceFileInfo.completeBaseName()) + ".cpp";
+                const std::string currentMoc = "moc_" + cmsys::SystemTools::GetFilenameWithoutLastExtension(absFilename) + ".cpp";
                 notIncludedMocs[absFilename] = currentMoc;
             }
         } else {
