@@ -698,6 +698,10 @@ std::list<std::string> AutoMoc::split(const std::string &input, char delimiter)
 
 std::string AutoMoc::join(const std::list<std::string> lst, char separator)
 {
+    if (lst.empty()) {
+        return "";
+    }
+
     std::string result;
     std::list<std::string>::const_iterator it = lst.begin();
     std::list<std::string>::const_iterator end = lst.end();
