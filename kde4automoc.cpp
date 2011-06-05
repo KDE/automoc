@@ -86,9 +86,7 @@ class AutoMoc
         std::string join(const std::list<std::string> lst, char separator);
         bool endsWith(const std::string &str, const std::string &with);
         bool startsWith(const std::string &str, const std::string &with);
-        std::string &trim(std::string &s);
-        std::string &ltrim(std::string &s);
-        std::string &rtrim(std::string &s);
+        void trim(std::string &s);
 
         int argc;
         char **argv;
@@ -157,12 +155,12 @@ void AutoMoc::lazyInitMocDefinitions()
     std::getline(dotFiles, line);
     dotFilesCheck(line == "MOC_COMPILE_DEFINITIONS:");
     std::getline(dotFiles, line);
-    line = trim(line);
+    trim(line);
     const std::list<std::string> &cdefList = split(line, ';');
     std::getline(dotFiles, line);
     dotFilesCheck(line == "MOC_DEFINITIONS:");
     std::getline(dotFiles, line);
-    line = trim(line);
+    trim(line);
     if (!cdefList.empty()) {
         for(std::list<std::string>::const_iterator it = cdefList.begin(); it != cdefList.end(); ++it)
         {
@@ -197,7 +195,7 @@ void AutoMoc::lazyInit()
     std::getline(dotFiles, line);
     dotFilesCheck(line == "MOC_INCLUDES:");
     std::getline(dotFiles, line);
-    line = trim(line);
+    trim(line);
     const std::list<std::string> &incPaths = split(line, ';');
     std::set<std::string> frameworkPaths;
     for(std::list<std::string>::const_iterator it = incPaths.begin(); it != incPaths.end(); ++it) {
@@ -226,13 +224,13 @@ void AutoMoc::lazyInit()
         std::getline(dotFiles, line);
         dotFilesCheck(line == "CMAKE_BINARY_DIR:");
         std::getline(dotFiles, line);
-        line = trim(line);
+        trim(line);
         const std::string &binDir = "-I" + line;
 
         std::getline(dotFiles, line);
         dotFilesCheck(line == "CMAKE_SOURCE_DIR:");
         std::getline(dotFiles, line);
-        line = trim(line);
+        trim(line);
         const std::string &srcDir = "-I" + line;
 
         std::list<std::string> sortedMocIncludes;
@@ -302,7 +300,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     std::getline(dotFiles, line);
     dotFilesCheck(line == "SOURCES:");
     std::getline(dotFiles, line);
-    line = trim(line);
+    trim(line);
     const std::list<std::string> &sourceFiles = split(line, ';');
 
     if (cmsys::SystemTools::FileExists(outfileName.c_str())) {
@@ -714,22 +712,9 @@ bool AutoMoc::endsWith(const std::string &str, const std::string &with)
     return (str.substr(str.length() - with.length(), with.length()) == with);
 }
 
-// trim from start
-std::string &AutoMoc::ltrim(std::string &s)
-{
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(::isspace))));
-    return s;
-}
-
-// trim from end
-std::string &AutoMoc::rtrim(std::string &s)
+// trim whitespace from both ends of a string
+void AutoMoc::trim(std::string &s)
 {
     s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(::isspace))).base(), s.end());
-    return s;
-}
-
-// trim from both ends
-std::string &AutoMoc::trim(std::string &s)
-{
-    return ltrim(rtrim(s));
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(::isspace))));
 }
