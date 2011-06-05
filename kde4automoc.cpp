@@ -38,10 +38,11 @@
 #include <set>
 #include <map>
 
+#include "cmSystemTools.h"
+
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFileInfo>
-#include <QtCore/QProcess>
 #include <cstdlib>
 #include <sys/types.h>
 #include <time.h>
@@ -77,16 +78,14 @@ class AutoMoc
         void printVersion();
         void echoColor(const std::string &msg)
         {
-            QProcess cmakeEcho;
-            cmakeEcho.setProcessChannelMode(QProcess::ForwardedChannels);
-            QStringList args;
+            std::vector<cmStdString> command;
+            command.push_back(cmakeExecutable);
             for (std::list<std::string>::const_iterator it = cmakeEchoColorArgs.begin();
                  it != cmakeEchoColorArgs.end(); ++it) {
-                args.append(QQQ((*it)));
+                command.push_back(*it);
             }
-            args << QQQ(msg);
-            cmakeEcho.start(QQQ(cmakeExecutable), args, QIODevice::NotOpen);
-            cmakeEcho.waitForFinished(-1);
+            command.push_back(msg);
+            cmSystemTools::RunSingleCommand(command);
         }
 
         // Helper functions to make code clearer
@@ -634,42 +633,36 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
             echoColor("Generating " + mocFileName);
         }
 
-        QProcess mocProc;
-        mocProc.setProcessChannelMode(QProcess::ForwardedChannels);
-        QStringList args;
-
+        std::vector<cmStdString> command;
+        command.push_back(mocExe);
         for (std::list<std::string>::const_iterator it = mocIncludes.begin();
              it != mocIncludes.end(); ++it) {
-            args.append(QQQ((*it)));
+            command.push_back(*it);
         }
         for (std::list<std::string>::const_iterator it = mocDefinitions.begin();
              it != mocDefinitions.end(); ++it) {
-            args.append(QQQ((*it)));
+            command.push_back(*it);
         }
 #ifdef Q_OS_WIN
-        args << "-DWIN32";
+        command.push_back("-DWIN32");
 #endif
-        args << QLatin1String("-o") << QQQ(mocFilePath) << QQQ(sourceFile);
-        //std::out << "executing: " << mocExe << args;
+        command.push_back("-o");
+        command.push_back(mocFilePath);
+        command.push_back(sourceFile);
+
         if (verbose) {
-            std::cout << mocExe << " " << STR(args.join(QLatin1String(" "))) << std::endl;
+            std::cout << mocExe << " " << /*join(command, " ") <<*/ std::endl;
         }
-        mocProc.start(QQQ(mocExe), args, QIODevice::NotOpen);
-        if (mocProc.waitForStarted()) {
-            const bool result = mocProc.waitForFinished(-1);
-            if (!result || mocProc.exitCode()) {
-                std::cerr << "automoc4: process for " << mocFilePath
-                     << " failed: " << STR(mocProc.errorString()) << std::endl;
-                std::cerr << "pid to wait for: " << mocProc.pid() << std::endl;
-                failed = true;
-                QFile::remove(QQQ(mocFilePath));
-            }
-            return true;
-        } else {
-            std::cerr << "automoc4: process for " << mocFilePath << "failed to start: "
-                 << STR(mocProc.errorString()) << std::endl;
+
+        std::string output;
+        int retVal = 0;
+        const bool result = cmSystemTools::RunSingleCommand(command, &output, &retVal);
+        if (!result || retVal) {
+            std::cerr << "automoc4: process for " << mocFilePath << " failed:\n" << output << std::endl;
             failed = true;
+            cmSystemTools::RemoveFile(mocFilePath.c_str());
         }
+        return true;
     }
     return false;
 }
