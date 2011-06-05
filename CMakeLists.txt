@@ -47,15 +47,34 @@ if(MSVC AND AUTOMOC_STATIC)
     set (CMAKE_EXE_LINKER_FLAGS_RELEASE "/INCREMENTAL:NO ${MSVCRT_LINK_FLAGS}")
 endif(MSVC AND AUTOMOC_STATIC)
 
+# Create the kwsys library from CMake.
+set(KWSYS_NAMESPACE cmsys)
+set(KWSYS_USE_SystemTools 1)
+set(KWSYS_USE_Directory 1)
+set(KWSYS_USE_RegularExpression 1)
+set(KWSYS_USE_Base64 0)
+set(KWSYS_USE_Glob 1)
+set(KWSYS_USE_MD5 0)
+set(KWSYS_USE_Process 1)
+set(KWSYS_USE_CommandLineArguments 1)
+set(KWSYS_HEADER_ROOT ${CMAKE_BINARY_DIR}/Source)
+
+add_subdirectory(kwsys)
+
+
 # Always include srcdir and builddir in include path
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-include_directories(${QT_INCLUDE_DIR})
-add_executable(automoc4 kde4automoc.cpp)
+include_directories(${QT_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/Source)
+
+add_executable(automoc4 kde4automoc.cpp
+                        cmSystemTools.cxx
+                        cmStandardIncludes.cxx
+              )
 
 set_target_properties(automoc4  PROPERTIES  SKIP_BUILD_RPATH            FALSE
                                             INSTALL_RPATH_USE_LINK_PATH TRUE )
 
-target_link_libraries(automoc4 ${QT_LIBRARIES})
+target_link_libraries(automoc4 ${QT_LIBRARIES} cmsys)
 
 install(TARGETS automoc4 DESTINATION bin)
 install(FILES Automoc4Config.cmake Automoc4Version.cmake automoc4.files.in  DESTINATION  lib${LIB_SUFFIX}/automoc4)
