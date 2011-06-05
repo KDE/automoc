@@ -33,14 +33,12 @@
 #include <fstream>
 #include <sstream>
 #include <assert.h>
-#include <regex>
 #include <sys/stat.h>
 #include <set>
 #include <map>
 
 #include "cmSystemTools.h"
 #include "cmsys/RegularExpression.hxx"
-
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
@@ -338,7 +336,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     std::map<std::string, std::string> notIncludedMocs; // key = moc source filepath, value = moc output filename
 
     cmsys::RegularExpression mocIncludeRegExp("[\n][ \t]*#[ \t]*include[ \t]+[\"<](([^ \">]+/)?moc_[^ \">/]+\\.cpp|[^ \">]+\\.moc)[\">]");
-    std::tr1::regex qObjectRegExp("[\n]\\s*Q_OBJECT\\b");
+    cmsys::RegularExpression qObjectRegExp("[\n][ \t]*Q_OBJECT[^a-zA-Z0-9_]");
     std::list<std::string> headerExtensions;
 #if defined(Q_OS_WIN)
     // not case sensitive
@@ -414,29 +412,29 @@ bool AutoMoc::run(int _argc, char **_argv)
                 // no moc #include, look whether we need to create a moc from the .h nevertheless
                 //std::cout << "no moc #include in the .cpp file";
                 const std::string basename = STR(sourceFileInfo.completeBaseName());
-                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
-                     it != headerExtensions.end(); ++it) {
-                    const std::string headername = absPath + basename + (*it);
-                    if (fileExists(headername) && includedMocs.find(headername) != includedMocs.end() &&
-                            notIncludedMocs.find(headername) != notIncludedMocs.end()) {
+                for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
+                     ext != headerExtensions.end(); ++ext) {
+                    const std::string headername = absPath + basename + (*ext);
+                    if (fileExists(headername) && includedMocs.find(headername) == includedMocs.end() &&
+                            notIncludedMocs.find(headername) == notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + ".cpp";
                         const std::string contents = readAll(headername);
-                        if (std::tr1::regex_search(contents, qObjectRegExp)) {
-                            //std::out << "header contains Q_OBJECT macro";
+                        if (qObjectRegExp.find(contents)) {
+                            //std::cout << "header contains Q_OBJECT macro";
                             notIncludedMocs[headername] = currentMoc;
                         }
                         break;
                     }
                 }
-                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
-                     it != headerExtensions.end(); ++it) {
-                    const std::string privateHeaderName = absPath + basename + "_p" + (*it);
-                    if (fileExists(privateHeaderName) && includedMocs.find(privateHeaderName) != includedMocs.end() &&
-                            notIncludedMocs.find(privateHeaderName) != notIncludedMocs.end()) {
+                for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
+                     ext != headerExtensions.end(); ++ext) {
+                    const std::string privateHeaderName = absPath + basename + "_p" + (*ext);
+                    if (fileExists(privateHeaderName) && includedMocs.find(privateHeaderName) == includedMocs.end() &&
+                            notIncludedMocs.find(privateHeaderName) == notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + "_p.cpp";
                         const std::string contents = readAll(privateHeaderName);
-                        if (std::tr1::regex_search(contents, qObjectRegExp)) {
-                            //std::out << "header contains Q_OBJECT macro";
+                        if (qObjectRegExp.find(contents)) {
+                            //std::cout << "header contains Q_OBJECT macro";
                             notIncludedMocs[privateHeaderName] = currentMoc;
                         }
                         break;
@@ -461,7 +459,7 @@ bool AutoMoc::run(int _argc, char **_argv)
                     //
                     // TODO: currently any .moc file name will be used if the source contains
                     // Q_OBJECT
-                    if (moc_style || !std::tr1::regex_search(contentsString, qObjectRegExp)) {
+                    if (moc_style || !qObjectRegExp.find(contentsString)) {
                         if (moc_style) {
                             // basename should be the part of the moc filename used for finding the
                             // correct header, so we need to remove the moc_ part
