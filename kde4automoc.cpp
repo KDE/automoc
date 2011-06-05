@@ -81,7 +81,6 @@ class AutoMoc
         }
 
         // Helper functions to make code clearer
-        bool fileExists(const std::string &filename);
         std::string readAll(const std::string &filename);
         std::list<std::string> split(const std::string &input, char delimiter);
         std::string join(const std::list<std::string> lst, char separator);
@@ -305,7 +304,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     line = trim(line);
     const std::list<std::string> &sourceFiles = split(line, ';');
 
-    if (fileExists(outfileName)) {
+    if (cmsys::SystemTools::FileExists(outfileName.c_str())) {
         // set generateAll = true if MOC_COMPILE_DEFINITIONS changed
         outfile.open(outfileName, std::ios_base::in);
         std::string buf;
@@ -407,8 +406,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                 for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
                      ext != headerExtensions.end(); ++ext) {
                     const std::string headername = absPath + basename + (*ext);
-                    if (fileExists(headername) && includedMocs.find(headername) == includedMocs.end() &&
-                            notIncludedMocs.find(headername) == notIncludedMocs.end()) {
+                    if (cmsys::SystemTools::FileExists(headername.c_str())
+                            && includedMocs.find(headername) == includedMocs.end()
+                            && notIncludedMocs.find(headername) == notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + ".cpp";
                         const std::string contents = readAll(headername);
                         if (qObjectRegExp.find(contents)) {
@@ -421,8 +421,9 @@ bool AutoMoc::run(int _argc, char **_argv)
                 for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
                      ext != headerExtensions.end(); ++ext) {
                     const std::string privateHeaderName = absPath + basename + "_p" + (*ext);
-                    if (fileExists(privateHeaderName) && includedMocs.find(privateHeaderName) == includedMocs.end() &&
-                            notIncludedMocs.find(privateHeaderName) == notIncludedMocs.end()) {
+                    if (cmsys::SystemTools::FileExists(privateHeaderName.c_str())
+                            && includedMocs.find(privateHeaderName) == includedMocs.end()
+                            && notIncludedMocs.find(privateHeaderName) == notIncludedMocs.end()) {
                         const std::string currentMoc = "moc_" + basename + "_p.cpp";
                         const std::string contents = readAll(privateHeaderName);
                         if (qObjectRegExp.find(contents)) {
@@ -458,10 +459,10 @@ bool AutoMoc::run(int _argc, char **_argv)
                         }
 
                         bool headerFound = false;
-                        for (std::list<std::string>::const_iterator it = headerExtensions.begin();
-                             it != headerExtensions.end(); ++it) {
-                            const std::string &sourceFilePath = absPath + basename + (*it);
-                            if (fileExists(sourceFilePath)) {
+                        for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
+                             ext != headerExtensions.end(); ++ext) {
+                            const std::string &sourceFilePath = absPath + basename + (*ext);
+                            if (cmsys::SystemTools::FileExists(sourceFilePath.c_str())) {
                                 headerFound = true;
                                 includedMocs[sourceFilePath] = currentMoc;
                                 notIncludedMocs.erase(sourceFilePath);
@@ -474,10 +475,10 @@ bool AutoMoc::run(int _argc, char **_argv)
                                 const std::string &filepath = absPath +
                                         cmsys::SystemTools::GetFilenamePath(currentMoc) + '/' + basename;
 
-                                for (std::list<std::string>::const_iterator it = headerExtensions.begin();
-                                     it != headerExtensions.end(); ++it) {
-                                    const std::string &sourceFilePath = filepath + (*it);
-                                    if (fileExists(sourceFilePath)) {
+                                for (std::list<std::string>::const_iterator ext = headerExtensions.begin();
+                                     ext != headerExtensions.end(); ++ext) {
+                                    const std::string &sourceFilePath = filepath + (*ext);
+                                    if (cmsys::SystemTools::FileExists(sourceFilePath.c_str())) {
                                         headerFound = true;
                                         includedMocs[sourceFilePath] = currentMoc;
                                         notIncludedMocs.erase(sourceFilePath);
@@ -657,12 +658,6 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
         return true;
     }
     return false;
-}
-
-bool AutoMoc::fileExists(const std::string &filename)
-{
-    struct stat fileInfo;
-    return (stat(filename.c_str(), &fileInfo) == 0);
 }
 
 std::string AutoMoc::readAll(const std::string &filename)
