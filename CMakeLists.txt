@@ -69,6 +69,7 @@ include_directories(${QT_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/Source)
 add_executable(automoc4 kde4automoc.cpp
                         cmSystemTools.cxx
                         cmStandardIncludes.cxx
+                        cmWin32ProcessExecution.cxx
               )
 
 set_target_properties(automoc4  PROPERTIES  SKIP_BUILD_RPATH            FALSE
