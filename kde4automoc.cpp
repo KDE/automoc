@@ -39,6 +39,7 @@
 
 #include "cmSystemTools.h"
 #include "cmsys/RegularExpression.hxx"
+#include "cmsys/SystemTools.hxx"
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
@@ -213,11 +214,11 @@ void AutoMoc::lazyInit()
         assert(!path.empty());
         mocIncludes.push_back("-I" + path);
         if (endsWith(path, ".framework/Headers")) {
-            QDir framework(QQQ(path));
             // Go up twice to get to the framework root
-            framework.cdUp();
-            framework.cdUp();
-            frameworkPaths.insert(STR(framework.path()));
+            std::vector<std::string> pathComponents;
+            cmsys::SystemTools::SplitPath(path.c_str(), pathComponents);
+            std::string frameworkPath = cmsys::SystemTools::JoinPath(pathComponents.begin(), pathComponents.end() - 2);
+            frameworkPaths.insert(frameworkPath);
         }
     }
 
@@ -614,12 +615,12 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
 {
     //std::cout << "AutoMoc::generateMoc" << sourceFile << mocFileName << std::endl;
     const std::string mocFilePath = builddir + mocFileName;
-    QFileInfo mocInfo(QQQ(mocFilePath));
-    if (generateAll || mocInfo.lastModified() <= QFileInfo(QQQ(sourceFile)).lastModified()) {
-        QDir mocDir = mocInfo.dir();
+    int sourceNewerThanMoc = 0;
+    bool success = cmsys::SystemTools::FileTimeCompare(sourceFile.c_str(), mocFilePath.c_str(), &sourceNewerThanMoc);
+    if (generateAll || !success || sourceNewerThanMoc >= 0) {
         // make sure the directory for the resulting moc file exists
-        if (!mocDir.exists()) {
-            mocDir.mkpath(mocDir.path());
+        if (!cmsys::SystemTools::FileExists(builddir.c_str(), false)) {
+            cmsys::SystemTools::MakeDirectory(builddir.c_str());
         }
 
         static bool initialized = false;
