@@ -72,7 +72,7 @@ if (WIN32)
   set(extraCmSources ${extraCmSources} cmWin32ProcessExecution.cxx )
 endif()
 
-add_executable(automoc4 automoc.cpp ${extraCmSources} )
+add_executable(automoc4 main.cpp automoc.cpp ${extraCmSources} )
 
 target_link_libraries(automoc4 cmsys)
 

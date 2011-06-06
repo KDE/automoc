@@ -24,11 +24,11 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "automoc.h"
+
 #include <iostream>
-#include <fstream>
 #include <sstream>
 #include <assert.h>
-#include <sys/stat.h>
 #include <set>
 #include <map>
 #include <cstdlib>
@@ -54,56 +54,6 @@
 // currently this is only used for the version number, Alex
 #include "automoc4_config.h"
 
-class AutoMoc
-{
-    public:
-        AutoMoc();
-        bool run(int argc, char **argv);
-
-    private:
-        void dotFilesCheck(bool);
-        void lazyInitMocDefinitions();
-        void lazyInit();
-        bool touch(const std::string &filename);
-        bool generateMoc(const std::string &sourceFile, const std::string &mocFileName);
-        void printUsage(const std::string &);
-        void printVersion();
-        void echoColor(const std::string &msg)
-        {
-            std::vector<cmStdString> command;
-            command.push_back(cmakeExecutable);
-            for (std::list<std::string>::const_iterator it = cmakeEchoColorArgs.begin();
-                 it != cmakeEchoColorArgs.end(); ++it) {
-                command.push_back(*it);
-            }
-            command.push_back(msg);
-            cmSystemTools::RunSingleCommand(command);
-        }
-
-        // Helper functions to make code clearer
-        std::string readAll(const std::string &filename);
-        std::list<std::string> split(const std::string &input, char delimiter);
-        std::string join(const std::list<std::string> lst, char separator);
-        bool endsWith(const std::string &str, const std::string &with);
-        bool startsWith(const std::string &str, const std::string &with);
-        void trim(std::string &s);
-
-        std::vector<std::string> args;
-        std::string builddir;
-        std::string mocExe;
-        std::list<std::string> mocIncludes;
-        std::list<std::string> mocDefinitions;
-        std::list<std::string> cmakeEchoColorArgs;
-        std::string cmakeExecutable;
-        std::string dotFilesName;
-        std::ifstream dotFiles;
-        const bool verbose;
-        bool failed;
-        bool automocCppChanged;
-        bool generateAll;
-        bool doTouch;
-};
-
 void AutoMoc::printUsage(const std::string &path)
 {
     std::cout << "Usage: " << path << " <outfile> <srcdir> <builddir> <moc executable> <cmake executable> [--touch]" << std::endl;
@@ -122,12 +72,16 @@ void AutoMoc::dotFilesCheck(bool x)
     }
 }
 
-int main(int argc, char **argv)
+void AutoMoc::echoColor(const std::string &msg)
 {
-    if (!AutoMoc().run(argc, argv)) {
-        return EXIT_FAILURE;
-    }
-    return 0;
+        std::vector<cmStdString> command;
+        command.push_back(cmakeExecutable);
+        for (std::list<std::string>::const_iterator it = cmakeEchoColorArgs.begin();
+                 it != cmakeEchoColorArgs.end(); ++it) {
+                command.push_back(*it);
+        }
+        command.push_back(msg);
+        cmSystemTools::RunSingleCommand(command);
 }
 
 AutoMoc::AutoMoc()
