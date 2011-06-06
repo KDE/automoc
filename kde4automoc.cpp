@@ -88,8 +88,7 @@ class AutoMoc
         bool startsWith(const std::string &str, const std::string &with);
         void trim(std::string &s);
 
-        int argc;
-        char **argv;
+        std::vector<std::string> args;
         std::string builddir;
         std::string mocExe;
         std::list<std::string> mocIncludes;
@@ -180,11 +179,11 @@ void AutoMoc::lazyInitMocDefinitions()
 
 void AutoMoc::lazyInit()
 {
-    mocExe = argv[4];
-    cmakeExecutable = argv[5];
+    mocExe = args[4];
+    cmakeExecutable = args[5];
 
-    if (argc > 6) {
-        if (argv[6] == "--touch") {
+    if (args.size() > 6) {
+        if (args[6] == "--touch") {
             doTouch = true;
         }
     }
@@ -261,41 +260,43 @@ bool AutoMoc::run(int _argc, char **_argv)
 {
     assert(_argc > 0);
 
-    argc = _argc;
-    argv = _argv;
+    for (int i=0; i<_argc; i++) {
+      args.push_back(_argv[i]);
+    }
+      
 
-    if (argc == 2) {
-        if ((argv[1]=="--help") || (argv[1]=="-h")) {
-        printUsage(argv[0]);
+    if (args.size() == 2) {
+        if ((args[1]=="--help") || (args[1]=="-h")) {
+        printUsage(args[0]);
        ::exit(0);
         }
-        else if (argv[1]=="--version") {
+        else if (args[1]=="--version") {
         printVersion();
        ::exit(0);
         }
         else {
-        printUsage(argv[0]);
+        printUsage(args[0]);
        ::exit(EXIT_FAILURE);
         }
     }
-    else if (argc < 6) {
-        printUsage(argv[0]);
+    else if (args.size() < 6) {
+        printUsage(args[0]);
        ::exit(EXIT_FAILURE);
     }
-    std::string outfileName = argv[1];
+    std::string outfileName = args[1];
     std::fstream outfile;
 
-    std::string srcdir(argv[2]);
+    std::string srcdir(args[2]);
     if (srcdir.at(srcdir.length() - 1) != '/') {
         srcdir += '/';
     }
-    builddir = argv[3];
+    builddir = args[3];
     if (builddir.at(builddir.length() - 1) != '/') {
         builddir += '/';
     }
 
-    dotFilesName = std::string(argv[1]) + ".files";
-    dotFiles.open(dotFilesName);
+    dotFilesName = args[1] + ".files";
+    dotFiles.open(dotFilesName.c_str());
     std::string line;
     std::getline(dotFiles, line);
     dotFilesCheck(line == "SOURCES:");
@@ -305,7 +306,7 @@ bool AutoMoc::run(int _argc, char **_argv)
 
     if (cmsys::SystemTools::FileExists(outfileName.c_str())) {
         // set generateAll = true if MOC_COMPILE_DEFINITIONS changed
-        outfile.open(outfileName, std::ios_base::in);
+        outfile.open(outfileName.c_str(), std::ios_base::in);
         std::string buf;
         std::getline(outfile, buf);
         // the second line contains the joined mocDefinitions
@@ -567,7 +568,7 @@ bool AutoMoc::run(int _argc, char **_argv)
     // either the contents of the _automoc.cpp file or one of the mocs included by it have changed
 
     // source file that includes all remaining moc files (_automoc.cpp file)
-    outfile.open(outfileName, std::ios_base::out | std::ios_base::trunc);
+    outfile.open(outfileName.c_str(), std::ios_base::out | std::ios_base::trunc);
     outfile << automocSource;
     outfile.close();
 
@@ -661,7 +662,7 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
 
 std::string AutoMoc::readAll(const std::string &filename)
 {
-    std::ifstream file(filename);
+    std::ifstream file(filename.c_str());
     std::stringstream stream;
     stream << file.rdbuf();
     file.close();
