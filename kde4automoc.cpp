@@ -263,35 +263,34 @@ bool AutoMoc::run(int _argc, char **_argv)
     for (int i=0; i<_argc; i++) {
       args.push_back(_argv[i]);
     }
-      
-
     if (args.size() == 2) {
         if ((args[1]=="--help") || (args[1]=="-h")) {
-        printUsage(args[0]);
-       ::exit(0);
+            printUsage(args[0]);
+            ::exit(0);
         }
         else if (args[1]=="--version") {
-        printVersion();
-       ::exit(0);
+            printVersion();
+           ::exit(0);
         }
         else {
-        printUsage(args[0]);
-       ::exit(EXIT_FAILURE);
+            printUsage(args[0]);
+           ::exit(EXIT_FAILURE);
         }
     }
     else if (args.size() < 6) {
         printUsage(args[0]);
        ::exit(EXIT_FAILURE);
     }
+
     std::string outfileName = args[1];
     std::fstream outfile;
 
     std::string srcdir(args[2]);
-    if (srcdir.at(srcdir.length() - 1) != '/') {
+    if (!endsWith(srcdir, "/")) {
         srcdir += '/';
     }
     builddir = args[3];
-    if (builddir.at(builddir.length() - 1) != '/') {
+    if (!endsWith(builddir, "/")) {
         builddir += '/';
     }
 
