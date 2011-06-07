@@ -564,8 +564,9 @@ bool AutoMoc::generateMoc(const std::string &sourceFile, const std::string &mocF
     bool success = cmsys::SystemTools::FileTimeCompare(sourceFile.c_str(), mocFilePath.c_str(), &sourceNewerThanMoc);
     if (generateAll || !success || sourceNewerThanMoc >= 0) {
         // make sure the directory for the resulting moc file exists
-        if (!cmsys::SystemTools::FileExists(builddir.c_str(), false)) {
-            cmsys::SystemTools::MakeDirectory(builddir.c_str());
+        std::string mocDir = mocFilePath.substr(0, mocFilePath.rfind('/'));
+        if (!cmsys::SystemTools::FileExists(mocDir.c_str(), false)) {
+            cmsys::SystemTools::MakeDirectory(mocDir.c_str());
         }
 
         static bool initialized = false;
