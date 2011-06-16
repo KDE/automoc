@@ -135,6 +135,9 @@ macro(AUTOMOC4 _target_NAME _SRCS)
       get_directory_property(_moc_defs DEFINITIONS)
       get_directory_property(_moc_cdefs COMPILE_DEFINITIONS)
 
+      # Assume CMAKE_INCLUDE_CURRENT_DIR is set
+      list(APPEND _moc_incs ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+
       # configure_file replaces _moc_files, _moc_incs, _moc_cdefs and _moc_defs
       configure_file(${_AUTOMOC4_CURRENT_DIR}/automoc4.files.in ${_automoc_source}.files)
 
@@ -197,6 +200,9 @@ macro(_ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
       get_directory_property(_moc_incs INCLUDE_DIRECTORIES)
       get_directory_property(_moc_defs DEFINITIONS)
       get_directory_property(_moc_cdefs COMPILE_DEFINITIONS)
+
+      # Assume CMAKE_INCLUDE_CURRENT_DIR is set
+      list(APPEND _moc_incs ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
       # configure_file replaces _moc_files, _moc_incs, _moc_cdefs and _moc_defs
       configure_file(${_AUTOMOC4_CURRENT_DIR}/automoc4.files.in ${_automoc_dotFiles})
