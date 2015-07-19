@@ -132,7 +132,6 @@ macro(AUTOMOC4 _target_NAME _SRCS)
    if(_moc_files)
       set(_automoc_source "${CMAKE_CURRENT_BINARY_DIR}/${_target_NAME}_automoc.cpp")
       get_directory_property(_moc_incs INCLUDE_DIRECTORIES)
-      get_directory_property(_moc_defs DEFINITIONS)
       get_directory_property(_moc_cdefs COMPILE_DEFINITIONS)
 
       # Assume CMAKE_INCLUDE_CURRENT_DIR is set
@@ -198,7 +197,6 @@ macro(_ADD_AUTOMOC4_TARGET _target_NAME _SRCS)
       set(_automoc_source "${CMAKE_CURRENT_BINARY_DIR}/${_target_NAME}.cpp")
       set(_automoc_dotFiles "${CMAKE_CURRENT_BINARY_DIR}/${_target_NAME}.cpp.files")
       get_directory_property(_moc_incs INCLUDE_DIRECTORIES)
-      get_directory_property(_moc_defs DEFINITIONS)
       get_directory_property(_moc_cdefs COMPILE_DEFINITIONS)
 
       # Assume CMAKE_INCLUDE_CURRENT_DIR is set
