@@ -272,7 +272,9 @@ endmacro(_AUTOMOC4_KDE4_PRE_TARGET_HANDLING)
 
 
 macro(_AUTOMOC4_KDE4_POST_TARGET_HANDLING _target)
-   add_dependencies(${_target} "${_target}_automoc")
+  if (TARGET "${_target}_automoc")
+    add_dependencies(${_target} "${_target}_automoc")
+  endif()
 endmacro(_AUTOMOC4_KDE4_POST_TARGET_HANDLING)
 
 
