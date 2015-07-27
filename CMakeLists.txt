@@ -1,6 +1,6 @@
+cmake_minimum_required(VERSION 2.8.9)
 project(Automoc4)
 
-cmake_minimum_required(VERSION 2.4.5 FATAL_ERROR)
 
 if(WIN32)
     # make cmake 2.6 happy
