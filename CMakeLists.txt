@@ -1,14 +1,6 @@
 cmake_minimum_required(VERSION 2.8.9)
 project(Automoc4)
 
-
-if(WIN32)
-    # make cmake 2.6 happy
-    if(COMMAND cmake_policy)
-        cmake_policy(SET CMP0003 NEW)
-    endif(COMMAND cmake_policy)
-endif(WIN32)
-
 include(CTest)
 
 find_package(Qt4 REQUIRED COMPONENTS QtCore )
